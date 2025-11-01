@@ -1024,9 +1024,15 @@ export default function BTQCompanion() {
     });
     
     const updatedShips = ships.map(ship => {
-      if (ship.fires.length === 0) return ship;
-      
       let updatedShip = { ...ship };
+      
+      // Increment grappled turns for ALL ships (v8)
+      if (updatedShip.grappled) {
+        updatedShip.grappledTurns += 1;
+      }
+      
+      // If no fires, return the updated ship (with grappled turns incremented)
+      if (ship.fires.length === 0) return updatedShip;
       
       const updatedFires = ship.fires.map(fire => {
         const newAge = fire.age + 1;
@@ -1085,11 +1091,6 @@ export default function BTQCompanion() {
       
       if (fireHullDamage > 0) {
         addLog(`🔥 ${ship.name}: Fire burns ${fireHullDamage} hull!`, 'error');
-      }
-      
-      // Increment grappled turns (v8)
-      if (updatedShip.grappled) {
-        updatedShip.grappledTurns += 1;
       }
       
       return {
