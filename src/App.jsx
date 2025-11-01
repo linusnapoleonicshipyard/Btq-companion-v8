@@ -1753,6 +1753,49 @@ export default function BTQCompanion() {
                       🔥 {ship.fires.length} fire{ship.fires.length > 1 ? 's' : ''}
                     </div>
                   )}
+                  
+                  {/* Grappling Controls */}
+                  <div className="mt-2 pt-2 border-t border-slate-600">
+                    {ship.grappled ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-green-400">
+                          ⚓ Grappled to: {ships.find(s => s.id === ship.grappled)?.name}
+                        </span>
+                        <button
+                          onClick={() => attemptCutGrapples(ship.id)}
+                          className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-bold"
+                        >
+                          ✂️ Cut Grapples
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <select
+                          id={`grapple-target-${ship.id}`}
+                          className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                          defaultValue=""
+                        >
+                          <option value="" disabled>Select ship to grapple...</option>
+                          {ships.filter(s => s.id !== ship.id && !s.grappled && s.sp > 0).map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            const select = document.getElementById(`grapple-target-${ship.id}`);
+                            const targetId = select.value;
+                            if (targetId) {
+                              attemptGrapple(ship.id, targetId);
+                              select.value = '';
+                            }
+                          }}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-bold whitespace-nowrap"
+                        >
+                          ⚓ Grapple
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -2330,4 +2373,4 @@ export default function BTQCompanion() {
       </div>
     </div>
   );
-} 
+}
