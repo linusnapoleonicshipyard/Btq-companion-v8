@@ -335,12 +335,6 @@ const BOARDING_CASUALTY_TABLES = {
   ]
 };
 
-// CREW ASSIGNMENT - Gun Crew Sizes (M.1)
-const GUN_CREW_SIZES = {
-  "Long Gun": 6,
-  "Carronade": 3
-};
-
 export default function BTQCompanion() {
   const [activeTab, setActiveTab] = useState('ships');
   const [ships, setShips] = useState([]);
