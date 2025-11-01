@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/btq-companion-v8/',
+  base: '/Btq-companion-v8/',
   build: {
     outDir: 'dist',
     sourcemap: false
