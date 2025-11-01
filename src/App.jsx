@@ -1,0 +1,2339 @@
+import React, { useState } from 'react';
+import { Ship, Wind, Target, AlertCircle, Flame, Heart, Skull, Plus, Trash2, Navigation, Anchor, Swords, Users } from 'lucide-react';
+
+// === MAST STRUCTURES ===
+
+const MAST_STRUCTURES = {
+  'three-masted': {
+    masts: ['Fore', 'Main', 'Mizzen', 'Bowsprit'],
+    layouts: {
+      10: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Fore Topgallant', mast: 'Fore', section: 2 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Main Topgallant', mast: 'Main', section: 2 },
+        { name: 'Spanker', mast: 'Mizzen', section: 0 },
+        { name: 'Mizzen Topsail', mast: 'Mizzen', section: 1 },
+        { name: 'Mizzen Topgallant', mast: 'Mizzen', section: 2 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      9: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Fore Topgallant', mast: 'Fore', section: 2 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Main Topgallant', mast: 'Main', section: 2 },
+        { name: 'Spanker', mast: 'Mizzen', section: 0 },
+        { name: 'Mizzen Topsail', mast: 'Mizzen', section: 1 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      8: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Fore Topgallant', mast: 'Fore', section: 2 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Main Topgallant', mast: 'Main', section: 2 },
+        { name: 'Spanker', mast: 'Mizzen', section: 0 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ]
+    }
+  },
+  'two-masted': {
+    masts: ['Fore', 'Main', 'Bowsprit'],
+    layouts: {
+      7: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Fore Topgallant', mast: 'Fore', section: 2 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Main Topgallant', mast: 'Main', section: 2 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      6: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Driver', mast: 'Main', section: 2 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      5: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      4: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Fore Topsail', mast: 'Fore', section: 1 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 }
+      ],
+      3: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      2: [
+        { name: 'Fore Course', mast: 'Fore', section: 0 },
+        { name: 'Main Course', mast: 'Main', section: 0 }
+      ]
+    }
+  },
+  'single-masted': {
+    masts: ['Main', 'Bowsprit'],
+    layouts: {
+      4: [
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Main Topsail', mast: 'Main', section: 1 },
+        { name: 'Main Topgallant', mast: 'Main', section: 2 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      2: [
+        { name: 'Main Course', mast: 'Main', section: 0 },
+        { name: 'Jib', mast: 'Bowsprit', section: 0 }
+      ],
+      1: [
+        { name: 'Main Course', mast: 'Main', section: 0 }
+      ]
+    }
+  }
+};
+
+const getMastStructure = (shipClass) => {
+  if (shipClass.includes('1st') || shipClass.includes('2nd') || 
+      shipClass.includes('3rd') || shipClass.includes('4th') || 
+      shipClass.includes('5th') || shipClass.includes('6th')) {
+    return 'three-masted';
+  }
+  if (shipClass.includes('Sloops') || shipClass.includes('Brigs') || 
+      shipClass.includes('Snows') || shipClass.includes('Xebecs')) {
+    return 'two-masted';
+  }
+  if (shipClass.includes('Cutters') || shipClass.includes('Gunboats') || 
+      shipClass.includes('Trabacolos')) {
+    return 'single-masted';
+  }
+  return 'two-masted';
+};
+
+const GUN_TYPES = [
+  "48# Long", "42# Long", "36# Long", "32# Long", "30# Long", "29# Long",
+  "24# Long", "18# Long", "12# Long", "9# Long", "8# Long", "6# Long", "4# Long", "3# Long",
+  "68# Carronade", "42# Carronade", "36# Carronade", "32# Carronade", "24# Carronade",
+  "18# Carronade", "12# Carronade"
+];
+
+const RANGE_BANDS = {
+  "48# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 41], Long: [41.1, 63], Extreme: [63.1, 150] },
+  "42# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 41], Long: [41.1, 63], Extreme: [63.1, 150] },
+  "36# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 41], Long: [41.1, 63], Extreme: [63.1, 150] },
+  "32# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 43], Long: [43.1, 66], Extreme: [66.1, 158] },
+  "30# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 43], Long: [43.1, 66], Extreme: [66.1, 158] },
+  "24# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 52], Long: [52.1, 79], Extreme: [79.1, 188] },
+  "18# Long": { PB: [0, 2], Close: [2.1, 25], Medium: [25.1, 54], Long: [54.1, 82], Extreme: [82.1, 195] },
+  "12# Long": { PB: [0, 2], Close: [2.1, 20], Medium: [20.1, 40], Long: [40.1, 60], Extreme: [60.1, 143] },
+  "9# Long": { PB: [0, 2], Close: [2.1, 19], Medium: [19.1, 37], Long: [37.1, 57], Extreme: [57.1, 135] },
+  "6# Long": { PB: [0, 2], Close: [2.1, 19], Medium: [19.1, 37], Long: [37.1, 57], Extreme: [57.1, 135] },
+  "68# Carronade": { PB: [0, 2], Close: [2.1, 14], Medium: [14.1, 23], Long: [23.1, 35], Extreme: [35.1, 94] },
+  "42# Carronade": { PB: [0, 2], Close: [2.1, 14], Medium: [14.1, 21], Long: [21.1, 32], Extreme: [32.1, 86] },
+  "32# Carronade": { PB: [0, 2], Close: [2.1, 10], Medium: [10.1, 20], Long: [20.1, 30], Extreme: [30.1, 83] }
+};
+
+const RANGE_MODIFIERS = { PB: 1.0, Close: 1.0, Medium: 0.54, Long: 0.40, Extreme: 0.07 };
+const SHOT_MODIFIERS = { Ball: 1.0, Double: 1.25, Dismantling: 2.5, Grape: 1.5, Canister: 2.5 };
+
+// ALL 37 HISTORICAL NATIONALITY MODIFIERS
+const NATIONALITY_MODIFIERS = {
+  "Denmark 1801": 0.65,
+  "Denmark 1807": 0.76,
+  "France - Royal Navy 1778-91": 0.91,
+  "France - Republican Navy 1792-1801": 0.38,
+  "France - Imperial Navy 1803-1815": 0.58,
+  "France - Privateers 1792-1801": 0.34,
+  "France - Privateers 1803-1815": 0.59,
+  "Great Britain - Royal Navy 1775-1815": 1.00,
+  "Great Britain - Captain Broke Shannon 1813": 1.14,
+  "Great Britain - Mail Packets 1812-15": 0.44,
+  "Hapsburg Empire": 0.42,
+  "Kingdom of Italy 1803-1815": 0.45,
+  "Kingdom of Naples 1806-15": 0.40,
+  "Kingdom of Sardinia 1792-1801": 0.41,
+  "Kingdom of Sardinia 1803-1815": 0.48,
+  "Kingdom of the Two Sicilies 1792-1801": 0.40,
+  "Kingdom of the Two Sicilies 1803-1815": 0.47,
+  "Ottoman Empire 1792-1815": 0.15,
+  "Portugal 1775-1801": 0.24,
+  "Portugal 1803-15": 0.37,
+  "Republic of Batavia 1796-1801": 0.43,
+  "Republic of Batavia 1803-1814": 0.49,
+  "Republic of Liguria": 0.27,
+  "Republic of Venice 1792-1797": 0.45,
+  "Russia 1788-1801": 0.44,
+  "Russia 1803-15": 0.51,
+  "Spain - Navy 1775-83": 0.36,
+  "Spain - Navy 1792-1801": 0.41,
+  "Spain - Navy 1803-1815": 0.48,
+  "Spanish Privateers 1792-1801": 0.38,
+  "Spanish Privateers 1803-1815": 0.44,
+  "Sweden 1788-1801": 0.46,
+  "Sweden 1803-1815": 0.54,
+  "United Provinces of the Netherlands 1780-1795": 1.00,
+  "U.S. Continental Navy 1775-1783": 0.50,
+  "U.S. Navy 1798-1811": 0.90,
+  "U.S. Navy 1812-15": 1.00,
+  "U.S. Navy Lawrence Chesapeake 1813": 0.90
+};
+
+const GUN_CREW_SIZES = {
+  "48# Long": 14, "42# Long": 14, "36# Long": 14, "32# Long": 12, "30# Long": 12, "29# Long": 12,
+  "24# Long": 12, "18# Long": 8, "12# Long": 8, "9# Long": 6, "8# Long": 6, "6# Long": 4, "4# Long": 3, "3# Long": 3,
+  "68# Carronade": 4, "42# Carronade": 4, "36# Carronade": 4, "32# Carronade": 3, 
+  "24# Carronade": 3, "18# Carronade": 3, "12# Carronade": 3
+};
+
+// COMPLETE MOVEMENT TABLES WITH DRIFTING
+const MOVEMENT_TABLES = {
+  "1st & 2nd rates": {
+    "Slight breeze": { QR: 90, Ru: 73, RN: 68, B: 46, D: 18 },
+    "Light breeze": { QR: 181, Ru: 145, RN: 135, B: 90, D: 36 },
+    "Gentle breeze": { QR: 247, Ru: 200, RN: 186, B: 124, D: 50 },
+    "Moderate breeze": { QR: 318, Ru: 253, RN: 240, B: 158, D: 64 },
+    "Fresh breeze": { QR: 453, Ru: 363, RN: 340, B: 228, D: 90 },
+    "Gale": { QR: 272, Ru: 218, RN: 206, B: 136, D: 55 }
+  },
+  "3rd rates": {
+    "Slight breeze": { QR: 101, Ru: 80, RN: 77, B: 50, D: 21 },
+    "Light breeze": { QR: 203, Ru: 163, RN: 152, B: 101, D: 40 },
+    "Gentle breeze": { QR: 272, Ru: 218, RN: 206, B: 136, D: 55 },
+    "Moderate breeze": { QR: 340, Ru: 272, RN: 256, B: 172, D: 68 },
+    "Fresh breeze": { QR: 475, Ru: 380, RN: 358, B: 240, D: 95 },
+    "Gale": { QR: 272, Ru: 218, RN: 206, B: 136, D: 55 }
+  },
+  "4th rates": {
+    "Slight breeze": { QR: 114, Ru: 90, RN: 86, B: 58, D: 24 },
+    "Light breeze": { QR: 228, Ru: 181, RN: 173, B: 117, D: 46 },
+    "Gentle breeze": { QR: 296, Ru: 235, RN: 223, B: 149, D: 61 },
+    "Moderate breeze": { QR: 363, Ru: 290, RN: 272, B: 181, D: 73 },
+    "Fresh breeze": { QR: 499, Ru: 395, RN: 374, B: 250, D: 105 },
+    "Gale": { QR: 250, Ru: 200, RN: 189, B: 127, D: 50 }
+  },
+  "5th & 6th rates": {
+    "Slight breeze": { QR: 225, Ru: 178, RN: 172, B: 114, D: 47 },
+    "Light breeze": { QR: 268, Ru: 212, RN: 201, B: 136, D: 56 },
+    "Gentle breeze": { QR: 389, Ru: 308, RN: 295, B: 198, D: 81 },
+    "Moderate breeze": { QR: 485, Ru: 383, RN: 367, B: 247, D: 102 },
+    "Fresh breeze": { QR: 586, Ru: 462, RN: 443, B: 299, D: 124 },
+    "Gale": { QR: 268, Ru: 212, RN: 201, B: 136, D: 56 }
+  },
+  "Sloops (Corvettes) and Xebecs": {
+    "Slight breeze": { QR: 207, Ru: 164, RN: 157, B: 105, D: 43 },
+    "Light breeze": { QR: 268, Ru: 212, RN: 201, B: 136, D: 56 },
+    "Gentle breeze": { QR: 451, Ru: 357, RN: 340, B: 229, D: 95 },
+    "Moderate breeze": { QR: 586, Ru: 462, RN: 441, B: 299, D: 124 },
+    "Fresh breeze": { QR: 537, Ru: 425, RN: 406, B: 272, D: 112 },
+    "Gale": { QR: 207, Ru: 164, RN: 157, B: 105, D: 44 }
+  },
+  "Brigs, Snows, Pojamas, Gondolas, Ketches, Galleys, Polaccas": {
+    "Slight breeze": { QR: 104, Ru: 81, RN: 78, B: 53, D: 22 },
+    "Light breeze": { QR: 138, Ru: 110, RN: 104, B: 70, D: 30 },
+    "Gentle breeze": { QR: 229, Ru: 181, RN: 173, B: 114, D: 49 },
+    "Moderate breeze": { QR: 320, Ru: 250, RN: 240, B: 160, D: 70 },
+    "Fresh breeze": { QR: 456, Ru: 364, RN: 342, B: 229, D: 92 },
+    "Gale": { QR: 92, Ru: 73, RN: 70, B: 47, D: 18 }
+  },
+  "Trabacolos, Baghalas, Dohws, Schooners, Luggers, Cutters, Gunboats, Galivats, Proas, Batils, Colonial Trade Sloops": {
+    "Slight breeze": { QR: 244, Ru: 192, RN: 183, B: 124, D: 50 },
+    "Light breeze": { QR: 327, Ru: 259, RN: 247, B: 167, D: 70 },
+    "Gentle breeze": { QR: 389, Ru: 308, RN: 295, B: 198, D: 81 },
+    "Moderate breeze": { QR: 451, Ru: 357, RN: 340, B: 229, D: 95 },
+    "Fresh breeze": { QR: 537, Ru: 425, RN: 406, B: 274, D: 112 },
+    "Gale": { QR: 207, Ru: 164, RN: 157, B: 105, D: 44 }
+  }
+};
+
+const WIND_STRENGTHS = ["Slight breeze", "Light breeze", "Gentle breeze", "Moderate breeze", "Fresh breeze", "Gale"];
+
+const COMPASS_POINTS = ["N","N by E","NNE","NE by N","NE","NE by E","ENE","E by N","E","E by S","ESE","SE by E","SE","SE by S","SSE","S by E","S","S by W","SSW","SW by S","SW","SW by W","WSW","W by S","W","W by N","WNW","NW by W","NW","NW by N","NNW","N by W"];
+
+const DEFAULT_SHIP_FORM = {
+  name: 'HMS Victory',
+  class: '1st & 2nd rates',
+  tonnage: 2200,
+  sails: 10,
+  crew: 850,
+  crewQuality: 'Experienced',
+  nationality: 'Great Britain - Royal Navy 1775-1815',
+  guns: [{ type: '32# Long', poundage: 32, count: 60 }],
+  bowChasers: { type: '12# Long', poundage: 12, count: 2 },
+  sternChasers: { type: '12# Long', poundage: 12, count: 2 }
+};
+
+// ============================================================================
+// V8 CONSTANTS - ENHANCED SYSTEMS
+// ============================================================================
+
+// ENHANCED FIRE SYSTEM - Fire Spreading Chances (L.4.1)
+const FIRE_SPREAD_CHANCES = {
+  "Slight breeze": 15,
+  "Light breeze": 25,
+  "Gentle breeze": 35,
+  "Moderate breeze": 45,
+  "Fresh breeze": 60,
+  "Gale": 60
+};
+
+// ENHANCED FIRE SYSTEM - Magazine Explosion Risk (L.4.3)
+const MAGAZINE_EXPLOSION_RISK = {
+  1: 0, 2: 0, 3: 0,
+  4: 5, 5: 10, 6: 20, 7: 35, 8: 50
+};
+
+// BOARDING SYSTEM - Nationality Boarding Casualty Factor Tables (H.3)
+const BOARDING_CASUALTY_TABLES = {
+  "United States 1775-1815": [
+    { min: 76, max: 100, casualties: 2 },
+    { min: 56, max: 75, casualties: 3 },
+    { min: 26, max: 55, casualties: 6 },
+    { min: 1, max: 25, casualties: 12 }
+  ],
+  "Great Britain - Royal Navy 1775-1815": [
+    { min: 76, max: 100, casualties: 3 },
+    { min: 56, max: 75, casualties: 6 },
+    { min: 26, max: 55, casualties: 9 },
+    { min: 1, max: 25, casualties: 12 }
+  ],
+  "France - Imperial Navy 1803-1815": [
+    { min: 76, max: 100, casualties: 9 },
+    { min: 56, max: 75, casualties: 15 },
+    { min: 26, max: 55, casualties: 18 },
+    { min: 1, max: 25, casualties: 39 }
+  ],
+  "Spain 1792-1808": [
+    { min: 76, max: 100, casualties: 9 },
+    { min: 56, max: 75, casualties: 24 },
+    { min: 26, max: 55, casualties: 30 },
+    { min: 1, max: 25, casualties: 45 }
+  ],
+  "Russia 1792-1815": [
+    { min: 82, max: 100, casualties: 6 },
+    { min: 34, max: 81, casualties: 9 },
+    { min: 25, max: 33, casualties: 11 },
+    { min: 1, max: 24, casualties: 18 }
+  ],
+  "_default": [
+    { min: 82, max: 100, casualties: 15 },
+    { min: 34, max: 81, casualties: 30 },
+    { min: 25, max: 33, casualties: 39 },
+    { min: 1, max: 24, casualties: 45 }
+  ]
+};
+
+// CREW ASSIGNMENT - Gun Crew Sizes (M.1)
+const GUN_CREW_SIZES = {
+  "Long Gun": 6,
+  "Carronade": 3
+};
+
+export default function BTQCompanion() {
+  const [activeTab, setActiveTab] = useState('ships');
+  const [ships, setShips] = useState([]);
+  const [shipForm, setShipForm] = useState(DEFAULT_SHIP_FORM);
+  const [turn, setTurn] = useState(1);
+  const [wind, setWind] = useState({ strength: 'Gentle breeze', direction: 'N' });
+  const [log, setLog] = useState([]);
+  const [shipAddedMessage, setShipAddedMessage] = useState('');
+  const [usePercentTurnPenalty, setUsePercentTurnPenalty] = useState(false);
+  const [gunneryForm, setGunneryForm] = useState({
+    firingShipId: '',
+    targetShipId: '',
+    arc: 'Port',
+    targetLocation: 'Port',
+    distance: 10,
+    shotType: 'Ball',
+    aimType: 'Hull',
+    rakeType: 'None',
+    useInitialBroadside: true
+  });
+  const [lastGunneryResult, setLastGunneryResult] = useState(null);
+  const [previousTurnState, setPreviousTurnState] = useState(null);
+  
+  // V8 STATE
+  const [useEnhancedFire, setUseEnhancedFire] = useState(true);
+
+  const addLog = (message, type = 'info') => {
+    setLog(prev => [...prev, { id: Date.now() + Math.random(), message, type, turn }]);
+  };
+
+  const calculateDerivedStats = (form) => {
+    const hvn = form.tonnage * 2;
+    const svn = Math.round(hvn / (1.3 * form.sails));
+    const totalGuns = form.guns.reduce((sum, g) => sum + g.count, 0) + 
+                      form.bowChasers.count + form.sternChasers.count;
+    const gdn = Math.round((totalGuns * hvn) / 1000);
+    const totalPoundage = form.guns.reduce((sum, g) => sum + (g.poundage * g.count), 0);
+    const lgbwn = Math.round(totalPoundage / 4);
+    const cbwn = Math.round(hvn / 40);
+    const pvn = Math.round(hvn / 400);
+    return { hvn, svn, gdn, lgbwn, cbwn, pvn };
+  };
+
+  const getRangeBand = (gunType, distance) => {
+    const bands = RANGE_BANDS[gunType];
+    if (!bands) return 'Out of Range';
+    if (distance <= bands.PB[1]) return 'PB';
+    if (distance <= bands.Close[1]) return 'Close';
+    if (distance <= bands.Medium[1]) return 'Medium';
+    if (distance <= bands.Long[1]) return 'Long';
+    if (distance <= bands.Extreme[1]) return 'Extreme';
+    return 'Out of Range';
+  };
+
+  const canFireShot = (shotType, rangeBand, aimType) => {
+    if (shotType === 'Dismantling' && aimType !== 'Rigging') return false;
+    if ((shotType === 'Grape' || shotType === 'Canister') && aimType !== 'Crew') return false;
+    if (rangeBand === 'Long' || rangeBand === 'Extreme') {
+      if (shotType === 'Double' || shotType === 'Dismantling') return false;
+    }
+    if (rangeBand === 'Medium' || rangeBand === 'Long' || rangeBand === 'Extreme') {
+      if (shotType === 'Grape' || shotType === 'Canister') return false;
+    }
+    return true;
+  };
+
+  const executeGunnery = () => {
+    const firingShip = ships.find(s => s.id === gunneryForm.firingShipId);
+    const targetShip = ships.find(s => s.id === gunneryForm.targetShipId);
+
+    if (!firingShip || !targetShip) {
+      addLog('⚠️ Select both ships', 'error');
+      return;
+    }
+
+    const { arc, targetLocation, distance, shotType, aimType, rakeType, useInitialBroadside } = gunneryForm;
+
+    const availableGuns = firingShip.arcs[arc]?.filter(g => g.count > 0) || [];
+    if (availableGuns.length === 0) {
+      addLog(`⚠️ No guns in ${arc} arc`, 'error');
+      return;
+    }
+
+    if (rakeType !== 'None' && shotType !== 'Ball') {
+      addLog('⚠️ Raking requires Ball shot', 'error');
+      return;
+    }
+
+    if (rakeType !== 'None' && distance > 19) {
+      addLog('⚠️ Raking requires ≤19cm', 'error');
+      return;
+    }
+
+    const ibAvailable = useInitialBroadside && 
+                        firingShip.crewQuality === 'Experienced' && 
+                        firingShip.initialBroadside[arc];
+
+    const ngm = NATIONALITY_MODIFIERS[firingShip.nationality] || 1.0;
+    const shotMod = SHOT_MODIFIERS[shotType] || 1.0;
+    const rakeMod = rakeType === 'Bow' ? 1.1 : rakeType === 'Stern' ? 1.25 : 1.0;
+    
+    let totalHits = 0;
+    let totalDamage = 0;
+
+    availableGuns.forEach(gun => {
+      const rangeBand = getRangeBand(gun.type, distance);
+      if (rangeBand === 'Out of Range') return;
+      if (!canFireShot(shotType, rangeBand, aimType)) return;
+
+      let roll = (Math.floor(Math.random() * 100) + 1) / 100;
+
+      if (ibAvailable) roll = Math.min(1.0, roll + 0.50);
+      if (rangeBand === 'Close') roll = Math.min(1.0, roll + 0.13);
+
+      const rangeModifier = rangeBand === 'PB' ? 1.0 : RANGE_MODIFIERS[rangeBand];
+      const hits = rangeBand === 'PB' ? gun.count : roll * rangeModifier * gun.count;
+      const damage = hits * gun.poundage * ngm * shotMod * rakeMod;
+      
+      totalHits += hits;
+      totalDamage += damage;
+    });
+
+    if (totalHits === 0) {
+      addLog('⚠️ No guns could fire', 'error');
+      return;
+    }
+
+    totalDamage = Math.round(totalDamage);
+
+    // Check for hull shots at range that might hit sails instead (BTQ gunnery calculator)
+    let actualAimType = aimType;
+    if (aimType === 'Hull') {
+      const rangeBand = getRangeBand(availableGuns[0].type, distance);
+      let sailHitChance = 0;
+      
+      if (rangeBand === 'Medium') sailHitChance = 0.15; // 15% chance
+      else if (rangeBand === 'Long') sailHitChance = 0.30; // 30% chance
+      else if (rangeBand === 'Extreme') sailHitChance = 0.50; // 50% chance
+      
+      if (sailHitChance > 0 && Math.random() < sailHitChance) {
+        actualAimType = 'Rigging';
+        addLog(`🎯 Hull shot hit rigging instead! (${Math.round(sailHitChance * 100)}% chance at range)`, 'info');
+      }
+    }
+
+    let crewLost = 0;
+    if (actualAimType === 'Crew') {
+      crewLost = Math.floor(totalDamage / 3);
+    }
+
+    if (ibAvailable) {
+      setShips(prevShips => prevShips.map(s => {
+        if (s.id === firingShip.id) {
+          return {
+            ...s,
+            initialBroadside: { ...s.initialBroadside, [arc]: false }
+          };
+        }
+        return s;
+      }));
+    }
+
+    const result = {
+      totalHits: totalHits.toFixed(1),
+      totalDamage,
+      crewLost,
+      aimType: actualAimType,
+      shotType,
+      rakeType,
+      firingShip: firingShip.name,
+      targetShip: targetShip.name,
+      targetShipId: targetShip.id,
+      arc,
+      targetLocation,
+      distance,
+      ibUsed: ibAvailable
+    };
+
+    setLastGunneryResult(result);
+    addLog(`💥 ${firingShip.name} fires at ${targetLocation}: ${totalHits.toFixed(1)} hits, ${totalDamage} dmg`, 'success');
+  };
+
+  // === DAMAGE APPLICATION ===
+
+  const applySailDamage = (ship, damage) => {
+    const updatedShip = { ...ship };
+    let damageLog = [];
+    
+    updatedShip.sailDamage += damage;
+    
+    while (updatedShip.sailDamage >= updatedShip.svn) {
+      updatedShip.sailDamage -= updatedShip.svn;
+      
+      const remainingSails = updatedShip.sailLayout.filter(s => 
+        !updatedShip.sailsLost.some(lost => lost.name === s.name)
+      );
+      
+      if (remainingSails.length === 0) {
+        damageLog.push('⛵ All sails destroyed!');
+        break;
+      }
+      
+      const randomSail = remainingSails[Math.floor(Math.random() * remainingSails.length)];
+      updatedShip.sailsLost.push(randomSail);
+      damageLog.push(`⛵ Lost: ${randomSail.name}`);
+      
+      // 35% chance of mast section destruction
+      if (Math.random() <= 0.35) {
+        // Track mast section loss
+        const mastSectionKey = `${randomSail.mast}-${randomSail.section}`;
+        if (!updatedShip.mastSectionsLost.includes(mastSectionKey)) {
+          updatedShip.mastSectionsLost.push(mastSectionKey);
+          damageLog.push(`💥 Mast section destroyed: ${randomSail.mast} (section ${randomSail.section})`);
+          
+          // Cascade: destroy all sails on higher sections of same mast
+          const cascadeSails = updatedShip.sailLayout.filter(s => 
+            s.mast === randomSail.mast && 
+            s.section > randomSail.section &&
+            !updatedShip.sailsLost.some(lost => lost.name === s.name)
+          );
+          
+          cascadeSails.forEach(sail => {
+            updatedShip.sailsLost.push(sail);
+            damageLog.push(`  ↳ Cascade: ${sail.name}`);
+          });
+          
+          // Calculate SP loss from mast sections
+          const totalSections = updatedShip.sailLayout.length;
+          const mastSectionLossPct = Math.floor((updatedShip.mastSectionsLost.length / totalSections) * 100);
+          const spFromMastSections = Math.floor(mastSectionLossPct / 10);
+          const oldSP = updatedShip.sp;
+          updatedShip.sp = Math.max(0, 10 - spFromMastSections);
+          const spLoss = oldSP - updatedShip.sp;
+          
+          if (spLoss > 0) {
+            damageLog.push(`📊 -${spLoss} SP (${updatedShip.mastSectionsLost.length}/${totalSections} mast sections lost)`);
+          }
+        }
+      }
+    }
+    
+    return { ship: updatedShip, log: damageLog };
+  };
+
+  const applyHullDamage = (ship, damage, targetLocation) => {
+    const updatedShip = { ...ship };
+    let damageLog = [];
+    
+    updatedShip.hullDamage += damage;
+    updatedShip.gdnCarry += damage;
+    
+    const hullPct = Math.floor((updatedShip.hullDamage / updatedShip.hvn) * 100);
+    const oldHullPct = Math.floor(((updatedShip.hullDamage - damage) / updatedShip.hvn) * 100);
+    
+    const spLoss = Math.floor(hullPct / 5) - Math.floor(oldHullPct / 5);
+    if (spLoss > 0) {
+      updatedShip.sp = Math.max(0, updatedShip.sp - spLoss);
+      damageLog.push(`📊 -${spLoss} SP (${hullPct}% hull)`);
+      
+      // Special damage roll (BTQ 6.5 + house rule) for each SP lost
+      for (let i = 0; i < spLoss; i++) {
+        const roll = Math.floor(Math.random() * 100) + 1;
+        if (roll === 1) {
+          // House rule: fire starts on 1
+          updatedShip.fires.push({ id: Date.now() + Math.random(), age: 1 });
+          damageLog.push(`🔥 FIRE! (-1 SP)`);
+          updatedShip.sp = Math.max(0, updatedShip.sp - 1);
+        } else if (roll >= 2 && roll <= 3) {
+          if (!updatedShip.rudder) {
+            updatedShip.rudder = true;
+            updatedShip.sp = Math.max(0, updatedShip.sp - 2);
+            damageLog.push(`🎯 RUDDER! (-2 SP)`);
+          }
+        } else if (roll >= 4 && roll <= 5) {
+          if (!updatedShip.wheel) {
+            updatedShip.wheel = true;
+            updatedShip.sp = Math.max(0, updatedShip.sp - 1);
+            damageLog.push(`🎯 WHEEL! (-1 SP)`);
+          }
+        }
+      }
+    }
+    
+    while (updatedShip.gdnCarry >= updatedShip.gdn) {
+      updatedShip.gdnCarry -= updatedShip.gdn;
+      
+      // Determine which arc to hit based on target location
+      let arcToHit;
+      if (targetLocation === 'Port' || targetLocation === 'Starboard') {
+        arcToHit = targetLocation;
+      } else {
+        // Bow or Stern hits: randomly allocate to Port or Starboard
+        arcToHit = Math.random() < 0.5 ? 'Port' : 'Starboard';
+      }
+      
+      const availableGuns = updatedShip.arcs[arcToHit].filter(g => g.count > 0);
+      if (availableGuns.length === 0) continue;
+      
+      const randomGunGroup = availableGuns[Math.floor(Math.random() * availableGuns.length)];
+      const gunIndex = updatedShip.arcs[arcToHit].findIndex(g => g === randomGunGroup);
+      
+      updatedShip.arcs[arcToHit][gunIndex] = {
+        ...randomGunGroup,
+        count: randomGunGroup.count - 1
+      };
+      
+      // Fix NaN bug: ensure crew size exists, default to 4 if not found
+      const crewSize = GUN_CREW_SIZES[randomGunGroup.type] || 4;
+      const crewLoss = Math.floor(Math.random() * crewSize);
+      updatedShip.crewLoss += crewLoss;
+      
+      damageLog.push(`💥 Gun lost: ${randomGunGroup.type} (${arcToHit}) → ${crewLoss} crew`);
+    }
+    
+    return { ship: updatedShip, log: damageLog };
+  };
+
+  const applyCrewDamage = (ship, casualties) => {
+    const updatedShip = { ...ship };
+    updatedShip.crewLoss += casualties;
+    return {
+      ship: updatedShip,
+      log: [`💀 ${casualties} casualties`]
+    };
+  };
+
+  const applyDamage = () => {
+    if (!lastGunneryResult) return;
+    
+    const targetShipId = lastGunneryResult.targetShipId;
+    const damage = lastGunneryResult.totalDamage;
+    const aimType = lastGunneryResult.aimType;
+    const targetLocation = lastGunneryResult.targetLocation;
+    
+    setShips(prevShips => prevShips.map(s => {
+      if (s.id !== targetShipId) return s;
+      
+      let result;
+      let allLogs = [];
+      
+      if (aimType === 'Rigging') {
+        result = applySailDamage(s, damage);
+        allLogs = result.log;
+      } else if (aimType === 'Hull') {
+        result = applyHullDamage(s, damage, targetLocation);
+        allLogs = result.log;
+      } else if (aimType === 'Crew') {
+        const casualties = Math.floor(damage / 3);
+        result = applyCrewDamage(s, casualties);
+        allLogs = result.log;
+      }
+      
+      allLogs.forEach(msg => addLog(`${s.name}: ${msg}`, 'error'));
+      
+      // Check for surrender (BTQ 6.94)
+      if (result.ship.sp === 0 && s.sp > 0) {
+        addLog(`⚑ ${s.name} STRIKES COLORS! (0 SP)`, 'error');
+      }
+      
+      return result.ship;
+    }));
+    
+    addLog('✅ Damage applied', 'success');
+  };
+
+  // ============================================================================
+  // V8 HELPER FUNCTIONS - ENHANCED FIRE SYSTEM
+  // ============================================================================
+
+  const getFireIntensity = (age) => {
+    if (age <= 2) return 'Minor';
+    if (age <= 5) return 'Major';
+    return 'Conflagration';
+  };
+
+  const getFireFightingBonus = (ship) => {
+    let bonus = 0;
+    if (ship.organizedFireParty) bonus += 10;
+    if (ship.firePumps) bonus += 5;
+    return bonus;
+  };
+
+  const calculateFireSpeedPenalty = (ship) => {
+    if (!useEnhancedFire) return 0;
+    
+    const hasConflag = ship.fires.some(f => f.intensity === 'Conflagration');
+    if (hasConflag) return 0.50;
+    
+    const hasMajor = ship.fires.some(f => f.intensity === 'Major');
+    if (hasMajor) return 0.25;
+    
+    return 0;
+  };
+
+  const checkMagazineExplosion = (fire, ship) => {
+    if (ship.magazineFlooded) return false;
+    if (!useEnhancedFire) return false;
+    
+    const risk = MAGAZINE_EXPLOSION_RISK[Math.min(fire.age, 8)] || 50;
+    const roll = Math.random() * 100;
+    
+    if (roll <= risk) {
+      addLog(`💥 ${ship.name}: MAGAZINE EXPLOSION! Ship destroyed!`, 'error');
+      return true;
+    }
+    return false;
+  };
+
+  const shouldFireSpread = (fire, ship) => {
+    if (!useEnhancedFire) return false;
+    if (fire.spreadRolled) return false;
+    
+    const baseChance = FIRE_SPREAD_CHANCES[wind.strength] || 35;
+    let spreadChance = baseChance;
+    
+    if (ship.organizedFireParty) spreadChance -= 10;
+    
+    const roll = Math.random() * 100;
+    return roll <= spreadChance;
+  };
+
+  const floodMagazine = (shipId) => {
+    setShips(prev => prev.map(s => {
+      if (s.id === shipId) {
+        addLog(`💧 ${s.name}: Magazine flooded - all guns disabled but explosion prevented`, 'info');
+        return { ...s, magazineFlooded: true };
+      }
+      return s;
+    }));
+  };
+
+  const toggleOrganizedFireParty = (shipId) => {
+    setShips(prev => prev.map(s => {
+      if (s.id === shipId) {
+        const newState = !s.organizedFireParty;
+        addLog(`${s.name}: Organized fire party ${newState ? 'activated' : 'deactivated'}`, 'info');
+        return { ...s, organizedFireParty: newState };
+      }
+      return s;
+    }));
+  };
+
+  // ============================================================================
+  // V8 HELPER FUNCTIONS - BOARDING SYSTEM
+  // ============================================================================
+
+  const attemptGrapple = (attackerShipId, defenderShipId) => {
+    const attacker = ships.find(s => s.id === attackerShipId);
+    const defender = ships.find(s => s.id === defenderShipId);
+    
+    if (!attacker || !defender) return;
+    
+    const sameDirection = attacker.pos === defender.pos;
+    const roll = Math.random() * 100;
+    
+    if (sameDirection || roll <= 50) {
+      setShips(prev => prev.map(s => {
+        if (s.id === attackerShipId || s.id === defenderShipId) {
+          return {
+            ...s,
+            grappled: s.id === attackerShipId ? defenderShipId : attackerShipId,
+            grappledTurns: 0,
+            boardingState: {
+              portBulwark: null,
+              starboardBulwark: null,
+              firstHalfDeck: null,
+              secondHalfDeck: null,
+              activeAttacker: null
+            }
+          };
+        }
+        return s;
+      }));
+      addLog(`⚓ ${attacker.name} grapples ${defender.name}!`, 'success');
+    } else {
+      addLog(`⚓ ${attacker.name} fails to grapple ${defender.name}`, 'error');
+    }
+  };
+
+  const attemptCutGrapples = (shipId) => {
+    const ship = ships.find(s => s.id === shipId);
+    if (!ship || !ship.grappled) return;
+    
+    const roll = Math.random() * 100;
+    if (roll <= 30) {
+      const grappledShip = ships.find(s => s.id === ship.grappled);
+      setShips(prev => prev.map(s => {
+        if (s.id === shipId || s.id === ship.grappled) {
+          return {
+            ...s,
+            grappled: null,
+            grappledTurns: 0,
+            boardingState: null
+          };
+        }
+        return s;
+      }));
+      addLog(`✂️ ${ship.name} cuts grapples with ${grappledShip?.name}`, 'success');
+    } else {
+      addLog(`✂️ ${ship.name} fails to cut grapples`, 'error');
+    }
+  };
+
+  const performBoardingAction = (attackerShipId, defenderShipId, area) => {
+    const attacker = ships.find(s => s.id === attackerShipId);
+    const defender = ships.find(s => s.id === defenderShipId);
+    
+    if (!attacker || !defender) return;
+    if (attacker.grappledTurns < 1) {
+      addLog('⚠️ Must wait 1 turn after grappling before boarding!', 'error');
+      return;
+    }
+    
+    // Check if we need both bulwarks first
+    if ((area === 'firstHalfDeck' || area === 'secondHalfDeck')) {
+      const bothBulwarks = 
+        attacker.boardingState.portBulwark === 'attacker' && 
+        attacker.boardingState.starboardBulwark === 'attacker';
+      
+      if (!bothBulwarks) {
+        addLog('⚠️ Must control both bulwarks first!', 'error');
+        return;
+      }
+    }
+    
+    if (area === 'secondHalfDeck' && attacker.boardingState.firstHalfDeck !== 'attacker') {
+      addLog('⚠️ Must control first half deck before second!', 'error');
+      return;
+    }
+    
+    const attackerCrew = attacker.crew - attacker.crewLoss;
+    const defenderCrew = defender.crew - defender.crewLoss;
+    
+    const roll = Math.random() * 100 + 1;
+    const attackerTable = BOARDING_CASUALTY_TABLES[attacker.nationality] || BOARDING_CASUALTY_TABLES._default;
+    const defenderTable = BOARDING_CASUALTY_TABLES[defender.nationality] || BOARDING_CASUALTY_TABLES._default;
+    
+    const attackerCasualty = attackerTable.find(r => roll >= r.min && roll <= r.max)?.casualties || 30;
+    const defenderCasualty = defenderTable.find(r => roll >= r.min && roll <= r.max)?.casualties || 30;
+    
+    const attackerLosses = Math.ceil(attackerCrew * (attackerCasualty / 100));
+    const defenderLosses = Math.ceil(defenderCrew * (defenderCasualty / 100));
+    
+    setShips(prev => prev.map(s => {
+      if (s.id === attackerShipId) {
+        let newState = { ...s, crewLoss: s.crewLoss + attackerLosses };
+        
+        if (attackerLosses < defenderLosses) {
+          newState.boardingState = { ...s.boardingState, [area]: 'attacker' };
+          if (!s.boardingState.activeAttacker) {
+            newState.boardingState.activeAttacker = attackerShipId;
+          }
+          
+          // Check for capture
+          if (newState.boardingState.firstHalfDeck === 'attacker' && 
+              newState.boardingState.secondHalfDeck === 'attacker') {
+            addLog(`🏴 ${s.name} CAPTURES ${defender.name}!`, 'success');
+            // Defender will be marked captured below
+          }
+        } else {
+          newState.boardingState = { ...s.boardingState, [area]: 'defender' };
+        }
+        
+        return newState;
+      }
+      
+      if (s.id === defenderShipId) {
+        let newState = { ...s, crewLoss: s.crewLoss + defenderLosses };
+        
+        // Check if captured
+        const attackerBoardingState = ships.find(sh => sh.id === attackerShipId)?.boardingState;
+        if (attackerLosses < defenderLosses) {
+          const futureState = { ...attackerBoardingState, [area]: 'attacker' };
+          if (futureState.firstHalfDeck === 'attacker' && futureState.secondHalfDeck === 'attacker') {
+            newState.status = 'Captured';
+            newState.sp = 0;
+          }
+        }
+        
+        return newState;
+      }
+      
+      return s;
+    }));
+    
+    if (attackerLosses < defenderLosses) {
+      addLog(`⚔️ ${attacker.name} wins ${area}! (A: -${attackerLosses} crew, D: -${defenderLosses} crew)`, 'success');
+    } else {
+      addLog(`🛡️ ${defender.name} holds ${area}! (A: -${attackerLosses} crew, D: -${defenderLosses} crew)`, 'info');
+    }
+  };
+
+  // ============================================================================
+  // V8 HELPER FUNCTIONS - CREW MANAGEMENT SYSTEM
+  // ============================================================================
+
+  const calculateRequiredGunCrew = (ship) => {
+    let totalRequired = 0;
+    ship.arcs.Port.forEach(gun => {
+      const crewPerGun = GUN_CREW_SIZES[gun.type?.includes('Long') ? 'Long Gun' : 'Carronade'] || 6;
+      totalRequired += crewPerGun * gun.count;
+    });
+    return totalRequired;
+  };
+
+  const calculateRequiredSailingCrew = (ship) => {
+    return Math.ceil(ship.hvn / 12);
+  };
+
+  const getGunCrewPenalty = (ship) => {
+    if (!ship.crewAssignmentMode) return 0;
+    
+    const required = calculateRequiredGunCrew(ship);
+    const assigned = ship.crewAssignments?.gunCrews || 0;
+    
+    if (assigned < required) {
+      const percentShort = ((required - assigned) / required) * 100;
+      if (percentShort >= 50) return -999; // Can't fire
+      return -percentShort;
+    }
+    return 0;
+  };
+
+  const getSailingCrewPenalty = (ship) => {
+    if (!ship.crewAssignmentMode) return 0;
+    
+    const required = calculateRequiredSailingCrew(ship);
+    const assigned = ship.crewAssignments?.sailingCrew || 0;
+    
+    if (assigned < required) {
+      const percentShort = ((required - assigned) / required) * 100;
+      return -percentShort;
+    }
+    return 0;
+  };
+
+  const toggleCrewAssignmentMode = (shipId, enabled) => {
+    setShips(prev => prev.map(s => {
+      if (s.id === shipId) {
+        if (enabled) {
+          return {
+            ...s,
+            crewAssignmentMode: true,
+            crewAssignments: {
+              gunCrews: 0,
+              sailingCrew: 0,
+              fireFighting: 0
+            }
+          };
+        } else {
+          return {
+            ...s,
+            crewAssignmentMode: false,
+            crewAssignments: null
+          };
+        }
+      }
+      return s;
+    }));
+  };
+
+  const updateCrewAssignment = (shipId, type, value) => {
+    setShips(prev => prev.map(s => {
+      if (s.id === shipId && s.crewAssignmentMode) {
+        const newAssignments = { ...s.crewAssignments, [type]: value };
+        const total = Object.values(newAssignments).reduce((sum, v) => sum + v, 0);
+        const available = s.crew - s.crewLoss;
+        
+        if (total > available) {
+          addLog(`⚠️ Not enough crew! Available: ${available}`, 'error');
+          return s;
+        }
+        
+        return { ...s, crewAssignments: newAssignments };
+      }
+      return s;
+    }));
+  };
+
+  const advanceTurn = () => {
+    // Save current state before advancing
+    setPreviousTurnState({
+      ships: JSON.parse(JSON.stringify(ships)),
+      turn,
+      wind: { ...wind },
+      log: [...log]
+    });
+    
+    const updatedShips = ships.map(ship => {
+      if (ship.fires.length === 0) return ship;
+      
+      let updatedShip = { ...ship };
+      
+      const updatedFires = ship.fires.map(fire => {
+        const newAge = fire.age + 1;
+        const newIntensity = getFireIntensity(newAge);
+        
+        // Check for magazine explosion (v8)
+        if (useEnhancedFire && checkMagazineExplosion({ ...fire, age: newAge }, ship)) {
+          return null; // Fire removed if ship explodes
+        }
+        
+        // Check for fire spreading (v8)
+        let newFire = { ...fire, age: newAge, intensity: newIntensity };
+        if (useEnhancedFire && !fire.spreadRolled && shouldFireSpread(newFire, ship)) {
+          addLog(`🔥 Fire on ${ship.name} spreads!`, 'error');
+          newFire.spreadRolled = true;
+          
+          // Add new fire if less than 3 total
+          if (updatedShip.fires.length < 3) {
+            updatedShip.fires = [...updatedShip.fires, { 
+              age: 0, 
+              intensity: 'Minor', 
+              spreadRolled: false 
+            }];
+          }
+        }
+        
+        // Standard extinguish check
+        const roll = Math.random() * 100;
+        let extinguishChance;
+        
+        const fireBonus = getFireFightingBonus(ship);
+        
+        if (newAge === 1) {
+          extinguishChance = (ship.crewQuality === 'Experienced' ? 62 : 52) + fireBonus;
+        } else if (newAge === 2) {
+          extinguishChance = (ship.crewQuality === 'Experienced' ? 44 : 34) + fireBonus;
+        } else {
+          extinguishChance = (ship.crewQuality === 'Experienced' ? 29 : 19) + fireBonus;
+        }
+        
+        if (roll <= extinguishChance) {
+          addLog(`🔥 ${ship.name}: Fire out!`, 'success');
+          return null;
+        }
+        
+        return newFire;
+      }).filter(f => f !== null);
+      
+      let fireHullDamage = 0;
+      updatedFires.forEach(fire => {
+        if (fire.age >= 4) {
+          const fivePctHull = Math.round(ship.hvn * 0.05);
+          fireHullDamage += fivePctHull;
+        }
+      });
+      
+      if (fireHullDamage > 0) {
+        addLog(`🔥 ${ship.name}: Fire burns ${fireHullDamage} hull!`, 'error');
+      }
+      
+      // Increment grappled turns (v8)
+      if (updatedShip.grappled) {
+        updatedShip.grappledTurns += 1;
+      }
+      
+      return {
+        ...updatedShip,
+        fires: updatedFires,
+        hullDamage: ship.hullDamage + fireHullDamage
+      };
+    });
+    
+    setShips(updatedShips);
+    setTurn(prev => prev + 1);
+    
+    // Wind changes every 10 turns (BTQ 3.12 & 3.22)
+    if (turn % 10 === 0) {
+      // Wind STRENGTH change (BTQ 3.12)
+      const strengthRoll = Math.floor(Math.random() * 100) + 1;
+      const currentStrengthIdx = WIND_STRENGTHS.indexOf(wind.strength);
+      
+      if (strengthRoll <= 25 && currentStrengthIdx > 0) {
+        // Drop one level
+        const newStrength = WIND_STRENGTHS[currentStrengthIdx - 1];
+        setWind(prev => ({ ...prev, strength: newStrength }));
+        addLog(`💨 Wind drops to ${newStrength}`, 'info');
+      } else if (strengthRoll >= 76 && currentStrengthIdx < WIND_STRENGTHS.length - 1) {
+        // Increase one level
+        const newStrength = WIND_STRENGTHS[currentStrengthIdx + 1];
+        setWind(prev => ({ ...prev, strength: newStrength }));
+        addLog(`💨 Wind increases to ${newStrength}`, 'info');
+      }
+      
+      // Wind DIRECTION change (BTQ 3.22)
+      const directionRoll = Math.floor(Math.random() * 100) + 1;
+      const dirIdx = COMPASS_POINTS.indexOf(wind.direction);
+      
+      if (directionRoll <= 5) {
+        // 8 points right
+        const newIdx = (dirIdx + 8) % 32;
+        setWind(prev => ({ ...prev, direction: COMPASS_POINTS[newIdx] }));
+        addLog(`💨 Wind shifts 8 pts RIGHT to ${COMPASS_POINTS[newIdx]}`, 'info');
+      } else if (directionRoll <= 10) {
+        // 8 points left
+        const newIdx = (dirIdx - 8 + 32) % 32;
+        setWind(prev => ({ ...prev, direction: COMPASS_POINTS[newIdx] }));
+        addLog(`💨 Wind shifts 8 pts LEFT to ${COMPASS_POINTS[newIdx]}`, 'info');
+      } else if (directionRoll <= 30) {
+        // 4 points right
+        const newIdx = (dirIdx + 4) % 32;
+        setWind(prev => ({ ...prev, direction: COMPASS_POINTS[newIdx] }));
+        addLog(`💨 Wind shifts 4 pts RIGHT to ${COMPASS_POINTS[newIdx]}`, 'info');
+      } else if (directionRoll <= 50) {
+        // 4 points left
+        const newIdx = (dirIdx - 4 + 32) % 32;
+        setWind(prev => ({ ...prev, direction: COMPASS_POINTS[newIdx] }));
+        addLog(`💨 Wind shifts 4 pts LEFT to ${COMPASS_POINTS[newIdx]}`, 'info');
+      }
+      // else 51-100: no change
+    }
+    
+    addLog(`Turn ${turn + 1} begins`, 'info');
+  };
+
+  const startNewGame = () => {
+    if (ships.length > 0 && !window.confirm('Start new game? All progress will be lost.')) {
+      return;
+    }
+    setShips([]);
+    setTurn(1);
+    setWind({ strength: 'Gentle breeze', direction: 'N' });
+    setLog([]);
+    setLastGunneryResult(null);
+    setPreviousTurnState(null);
+    addLog('🎮 New game started', 'success');
+  };
+
+  const restartTurn = () => {
+    if (!previousTurnState) {
+      addLog('⚠️ No previous turn to restart', 'error');
+      return;
+    }
+    if (!window.confirm('Restart to previous turn?')) {
+      return;
+    }
+    setShips(previousTurnState.ships);
+    setTurn(previousTurnState.turn);
+    setWind(previousTurnState.wind);
+    setLog(previousTurnState.log);
+    setPreviousTurnState(null);
+    addLog('↩️ Turn restarted', 'info');
+  };
+
+  const exportGame = () => {
+    const gameState = {
+      version: 'BTQ-v7',
+      timestamp: new Date().toISOString(),
+      ships,
+      turn,
+      wind,
+      log,
+      usePercentTurnPenalty
+    };
+    
+    const dataStr = JSON.stringify(gameState, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const filename = `btq-save-turn${turn}-${Date.now()}.json`;
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the URL after a delay
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+    
+    addLog(`💾 Game exported: ${filename}`, 'success');
+  };
+
+  const importGame = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const gameState = JSON.parse(e.target.result);
+        
+        if (!gameState.version || !gameState.ships) {
+          throw new Error('Invalid save file');
+        }
+        
+        setShips(gameState.ships || []);
+        setTurn(gameState.turn || 1);
+        setWind(gameState.wind || { strength: 'Gentle breeze', direction: 'N' });
+        setLog(gameState.log || []);
+        setUsePercentTurnPenalty(gameState.usePercentTurnPenalty || false);
+        setPreviousTurnState(null);
+        setLastGunneryResult(null);
+        
+        // Reset gunnery form to ensure targetLocation exists
+        setGunneryForm({
+          firingShipId: '',
+          targetShipId: '',
+          arc: 'Port',
+          targetLocation: 'Port',
+          distance: 10,
+          shotType: 'Ball',
+          aimType: 'Hull',
+          rakeType: 'None',
+          useInitialBroadside: true
+        });
+        
+        addLog('📂 Game loaded', 'success');
+      } catch (error) {
+        addLog(`⚠️ Import failed: ${error.message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  const addGunGroup = () => {
+    setShipForm(prev => ({
+      ...prev,
+      guns: [...prev.guns, { type: '18# Long', poundage: 18, count: 10 }]
+    }));
+  };
+
+  const removeGunGroup = (index) => {
+    setShipForm(prev => ({
+      ...prev,
+      guns: prev.guns.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateGunGroup = (index, field, value) => {
+    setShipForm(prev => ({
+      ...prev,
+      guns: prev.guns.map((g, i) => {
+        if (i !== index) return g;
+        const updated = { ...g, [field]: value };
+        if (field === 'type') {
+          updated.poundage = parseInt(value.match(/\d+/)[0]);
+        }
+        return updated;
+      })
+    }));
+  };
+
+  const getTurnCap = (shipClass) => {
+    if (shipClass.includes('1st') || shipClass.includes('2nd')) return 3;
+    if (shipClass.includes('3rd')) return 5;
+    if (shipClass.includes('4th')) return 7;
+    if (shipClass.includes('5th') || shipClass.includes('6th')) return 8;
+    if (shipClass.includes('Sloops') || shipClass.includes('Xebecs')) return 9;
+    if (shipClass.includes('Brigs') || shipClass.includes('Snows')) return 9;
+    return 10;
+  };
+
+  const testMovement = (ship) => {
+    const table = MOVEMENT_TABLES[ship.class];
+    if (!table) return null;
+    
+    const speeds = table[wind.strength];
+    if (!speeds) return null;
+
+    const base = speeds[ship.pos];
+    const sailLossPct = (ship.sailsLost.length / ship.sails) * 100;
+    const sailPenalty = Math.round(base * sailLossPct / 100);
+    
+    const turnPenalty = usePercentTurnPenalty 
+      ? Math.round(base * 0.05 * ship.turnPoints)
+      : 15 * ship.turnPoints;
+    
+    const maxSpeed = Math.max(0, base - sailPenalty - turnPenalty);
+    const minSpeed = ship.lastMove > 0 ? Math.floor(ship.lastMove * 0.5) : 0;
+    const maxCap = ship.lastMove > 0 ? ship.lastMove * 2 : maxSpeed;
+    
+    const allowedMin = Math.max(minSpeed, 0);
+    const allowedMax = Math.min(maxSpeed, maxCap);
+    
+    return {
+      base,
+      maxSpeed,
+      allowedRange: `${allowedMin} - ${allowedMax}mm`
+    };
+  };
+
+  const createShip = () => {
+    if (!shipForm.name) {
+      addLog('⚠️ Name required', 'error');
+      return;
+    }
+
+    const derived = calculateDerivedStats(shipForm);
+    const mastStructure = getMastStructure(shipForm.class);
+    const sailLayout = MAST_STRUCTURES[mastStructure].layouts[shipForm.sails] || 
+                       MAST_STRUCTURES[mastStructure].layouts[Object.keys(MAST_STRUCTURES[mastStructure].layouts)[0]];
+    
+    const arcs = { Port: [], Starboard: [], Bow: [], Stern: [] };
+
+    shipForm.guns.forEach(gun => {
+      const halfCount = Math.floor(gun.count / 2);
+      const remainder = gun.count % 2;
+      
+      arcs.Port.push({
+        type: gun.type,
+        poundage: gun.poundage,
+        count: halfCount + remainder
+      });
+      
+      arcs.Starboard.push({
+        type: gun.type,
+        poundage: gun.poundage,
+        count: halfCount
+      });
+    });
+
+    if (shipForm.bowChasers.count > 0) {
+      arcs.Bow.push(shipForm.bowChasers);
+    }
+
+    if (shipForm.sternChasers.count > 0) {
+      arcs.Stern.push(shipForm.sternChasers);
+    }
+
+    const newShip = {
+      id: `ship_${Date.now()}`,
+      name: shipForm.name,
+      class: shipForm.class,
+      tonnage: shipForm.tonnage,
+      sails: shipForm.sails,
+      crew: shipForm.crew,
+      crewQuality: shipForm.crewQuality,
+      nationality: shipForm.nationality,
+      ...derived,
+      arcs,
+      mastStructure,
+      sailLayout,
+      hullDamage: 0,
+      sailDamage: 0,
+      crewLoss: 0,
+      sp: 10,
+      fires: [],
+      wheel: false,
+      rudder: false,
+      gdnCarry: 0,
+      sailsLost: [],
+      mastSectionsLost: [],
+      lastMove: 0,
+      turnPoints: 0,
+      pos: 'Ru',
+      initialBroadside: { Port: true, Starboard: true, Bow: true, Stern: true },
+      // V8 fields
+      magazineFlooded: false,
+      organizedFireParty: false,
+      firePumps: shipForm.class.includes('1st') || shipForm.class.includes('2nd') || shipForm.class.includes('3rd'),
+      grappled: null,
+      grappledTurns: 0,
+      boardingState: null,
+      hasSoldiers: false,
+      soldierPercent: 0,
+      crewAssignmentMode: false,
+      crewAssignments: null,
+      status: 'Active'
+    };
+
+    setShips(prev => [...prev, newShip]);
+    addLog(`✅ ${newShip.name} added`, 'success');
+    setShipAddedMessage(`✓ ${newShip.name} added!`);
+    setTimeout(() => setShipAddedMessage(''), 3000);
+    setShipForm({ ...DEFAULT_SHIP_FORM });
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-2">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-slate-800 rounded-lg p-3 mb-2 border border-slate-700">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Ship className="w-5 h-5 text-blue-400" />
+              <h1 className="text-base font-bold">BTQ v7 Complete</h1>
+              <div className="px-2 py-0.5 bg-slate-700 rounded text-xs">T{turn}</div>
+              {ships.length > 0 && (
+                <div className="px-2 py-0.5 bg-blue-900 rounded text-xs">{ships.length}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Wind className="w-4 h-4 text-cyan-400" />
+              <select
+                value={wind.strength}
+                onChange={(e) => setWind(prev => ({ ...prev, strength: e.target.value }))}
+                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+              >
+                {WIND_STRENGTHS.map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+              <select
+                value={wind.direction}
+                onChange={(e) => setWind(prev => ({ ...prev, direction: e.target.value }))}
+                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+              >
+                {COMPASS_POINTS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <button onClick={advanceTurn} className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-bold">
+                Next
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 justify-end">
+            <button 
+              onClick={startNewGame}
+              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+            >
+              🎮 New Game
+            </button>
+            <button 
+              onClick={restartTurn}
+              disabled={!previousTurnState}
+              className={`px-2 py-1 rounded text-xs ${
+                previousTurnState 
+                  ? 'bg-yellow-600 hover:bg-yellow-700' 
+                  : 'bg-slate-600 cursor-not-allowed opacity-50'
+              }`}
+            >
+              ↩️ Restart Turn
+            </button>
+            <button 
+              onClick={exportGame}
+              disabled={ships.length === 0}
+              className={`px-2 py-1 rounded text-xs ${
+                ships.length > 0
+                  ? 'bg-purple-600 hover:bg-purple-700'
+                  : 'bg-slate-600 cursor-not-allowed opacity-50'
+              }`}
+            >
+              💾 Export
+            </button>
+            <label className={`px-2 py-1 rounded text-xs cursor-pointer ${
+              'bg-orange-600 hover:bg-orange-700'
+            }`}>
+              📂 Import
+              <input
+                type="file"
+                accept=".json"
+                onChange={importGame}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="bg-slate-700 rounded px-3 py-2 mb-2 flex items-center gap-4 text-xs">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useEnhancedFire}
+              onChange={(e) => setUseEnhancedFire(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="font-medium">🔥 Enhanced Fire (v8 - L.4)</span>
+          </label>
+          <span className="text-slate-400">Fire spreading, intensity levels, magazine explosions</span>
+        </div>
+
+        <div className="flex gap-1 mb-2 overflow-x-auto">
+          {['ships', 'movement', 'gunnery', 'boarding', 'damage', 'crew', 'log'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
+                activeTab === tab ? 'bg-blue-600' : 'bg-slate-700'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'ships' && (
+          <div className="space-y-2">
+            <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+              <h2 className="text-sm font-bold mb-2">Create Ship</h2>
+              
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Name</label>
+                  <input
+                    value={shipForm.name}
+                    onChange={(e) => setShipForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Class</label>
+                    <select
+                      value={shipForm.class}
+                      onChange={(e) => setShipForm(prev => ({ ...prev, class: e.target.value }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    >
+                      {Object.keys(MOVEMENT_TABLES).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Tonnage</label>
+                    <input
+                      type="number"
+                      value={shipForm.tonnage}
+                      onChange={(e) => setShipForm(prev => ({ ...prev, tonnage: parseInt(e.target.value) }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Sails</label>
+                    <select
+                      value={shipForm.sails}
+                      onChange={(e) => setShipForm(prev => ({ ...prev, sails: parseInt(e.target.value) }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    >
+                      {[10,9,8,7,6,5,4,3,2,1].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Crew</label>
+                    <input
+                      type="number"
+                      value={shipForm.crew}
+                      onChange={(e) => setShipForm(prev => ({ ...prev, crew: parseInt(e.target.value) }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Quality</label>
+                    <select
+                      value={shipForm.crewQuality}
+                      onChange={(e) => setShipForm(prev => ({ ...prev, crewQuality: e.target.value }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    >
+                      <option>Experienced</option>
+                      <option>Inexperienced</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Nationality</label>
+                    <select
+                      value={shipForm.nationality}
+                      onChange={(e) => setShipForm(prev => ({ ...prev, nationality: e.target.value }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    >
+                      {Object.entries(NATIONALITY_MODIFIERS).map(([nat, mod]) => (
+                        <option key={nat} value={nat}>{nat.slice(0, 30)} ({mod})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-slate-400">Broadside Guns</label>
+                    <button onClick={addGunGroup} className="px-2 py-0.5 bg-blue-600 rounded text-xs flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> Add
+                    </button>
+                  </div>
+                  {shipForm.guns.map((gun, idx) => (
+                    <div key={idx} className="flex gap-1 mb-1">
+                      <select
+                        value={gun.type}
+                        onChange={(e) => updateGunGroup(idx, 'type', e.target.value)}
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                      >
+                        {GUN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        value={gun.count}
+                        onChange={(e) => updateGunGroup(idx, 'count', parseInt(e.target.value))}
+                        className="w-12 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                      />
+                      <button onClick={() => removeGunGroup(idx)} className="px-1 bg-red-600 rounded">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Bow Chasers</label>
+                    <div className="flex gap-1">
+                      <select
+                        value={shipForm.bowChasers.type}
+                        onChange={(e) => setShipForm(prev => ({ 
+                          ...prev, 
+                          bowChasers: { ...prev.bowChasers, type: e.target.value, poundage: parseInt(e.target.value.match(/\d+/)[0]) }
+                        }))}
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                      >
+                        {GUN_TYPES.slice(0, 14).map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        value={shipForm.bowChasers.count}
+                        onChange={(e) => setShipForm(prev => ({ 
+                          ...prev, 
+                          bowChasers: { ...prev.bowChasers, count: parseInt(e.target.value) }
+                        }))}
+                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Stern Chasers</label>
+                    <div className="flex gap-1">
+                      <select
+                        value={shipForm.sternChasers.type}
+                        onChange={(e) => setShipForm(prev => ({ 
+                          ...prev, 
+                          sternChasers: { ...prev.sternChasers, type: e.target.value, poundage: parseInt(e.target.value.match(/\d+/)[0]) }
+                        }))}
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                      >
+                        {GUN_TYPES.slice(0, 14).map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        value={shipForm.sternChasers.count}
+                        onChange={(e) => setShipForm(prev => ({ 
+                          ...prev, 
+                          sternChasers: { ...prev.sternChasers, count: parseInt(e.target.value) }
+                        }))}
+                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {shipForm.guns.length > 0 && (
+                  <div className="p-2 bg-slate-900/50 rounded border border-slate-600">
+                    <div className="text-xs text-slate-400 mb-1">📊 Stats Preview:</div>
+                    {(() => {
+                      const stats = calculateDerivedStats(shipForm);
+                      return (
+                        <div className="grid grid-cols-3 gap-1 text-xs">
+                          <div><span className="text-slate-400">HVN:</span> <span className="text-green-400">{stats.hvn}</span></div>
+                          <div><span className="text-slate-400">SVN:</span> <span className="text-green-400">{stats.svn}</span></div>
+                          <div><span className="text-slate-400">GDN:</span> <span className="text-green-400">{stats.gdn}</span></div>
+                          <div><span className="text-slate-400">LGBWN:</span> <span className="text-cyan-400">{stats.lgbwn}</span></div>
+                          <div><span className="text-slate-400">CBWN:</span> <span className="text-cyan-400">{stats.cbwn}</span></div>
+                          <div><span className="text-slate-400">PVN:</span> <span className="text-blue-400">{stats.pvn}</span></div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={createShip} className="mt-2 w-full px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded font-bold text-xs">
+                ⚓ Create Ship
+              </button>
+              {shipAddedMessage && (
+                <div className="mt-1 text-center text-green-400 font-bold text-xs">{shipAddedMessage}</div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              {ships.map(ship => (
+                <div key={ship.id} className="bg-slate-800 rounded-lg p-2 border border-slate-700">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-sm">{ship.name}</h3>
+                    <div className="flex gap-2 items-center">
+                      {ship.sp === 0 && (
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-white text-black animate-pulse">
+                          ⚑ STRUCK!
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                        ship.sp >= 7 ? 'bg-green-700' : ship.sp >= 4 ? 'bg-yellow-700' : 'bg-red-700'
+                      }`}>
+                        SP {ship.sp}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                    <div>
+                      <span className="text-slate-400">Hull:</span> {Math.floor((ship.hullDamage / ship.hvn) * 100)}%
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Sails:</span> {ship.sailsLost.length}/{ship.sails}
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Crew:</span> {ship.crew - ship.crewLoss}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    {['Port', 'Starboard', 'Bow', 'Stern'].map(arc => {
+                      const guns = ship.arcs[arc];
+                      if (!guns || guns.length === 0) return null;
+                      const total = guns.reduce((sum, g) => sum + g.count, 0);
+                      return (
+                        <div key={arc} className="p-1 bg-slate-900/50 rounded">
+                          <div className="text-slate-400 font-bold">{arc}:</div>
+                          {guns.map((g, i) => g.count > 0 && (
+                            <div key={i}>{g.count}× {g.type}</div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {ship.fires.length > 0 && (
+                    <div className="mt-1 text-xs text-orange-400">
+                      🔥 {ship.fires.length} fire{ship.fires.length > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'movement' && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold">Movement Calculator</h2>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={usePercentTurnPenalty}
+                  onChange={(e) => setUsePercentTurnPenalty(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <label className="text-xs">5% per turn (optional)</label>
+              </div>
+            </div>
+            
+            {ships.length === 0 ? (
+              <div className="text-slate-400 text-center py-8 text-sm">
+                No ships. Go to Ships tab.
+              </div>
+            ) : (
+              ships.map(ship => {
+                const movement = testMovement(ship);
+                if (!movement) return null;
+
+                const turnCap = getTurnCap(ship.class);
+
+                return (
+                  <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3 border border-slate-600">
+                    <h3 className="font-bold mb-2 text-sm">{ship.name}</h3>
+                    
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Point of Sail</label>
+                        <select
+                          value={ship.pos}
+                          onChange={(e) => {
+                            setShips(ships.map(s => 
+                              s.id === ship.id ? { ...s, pos: e.target.value } : s
+                            ));
+                          }}
+                          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs"
+                        >
+                          <option value="QR">QR</option>
+                          <option value="Ru">Ru</option>
+                          <option value="RN">RN</option>
+                          <option value="B">B</option>
+                          <option value="D">D</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">
+                          Turn Pts (max {turnCap}
+                          {ship.rudder && ' -50% rudder'}
+                          {ship.wheel && ' -25% wheel'})
+                        </label>
+                        <input
+                          type="number"
+                          value={ship.turnPoints}
+                          min="0"
+                          max={turnCap}
+                          onChange={(e) => {
+                            const val = Math.min(turnCap, Math.max(0, parseInt(e.target.value) || 0));
+                            setShips(ships.map(s => 
+                              s.id === ship.id ? { ...s, turnPoints: val } : s
+                            ));
+                          }}
+                          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs"
+                        />
+                        {(ship.rudder || ship.wheel) && (
+                          <div className="mt-1 text-xs text-red-400">
+                            {ship.rudder && '🎯 Rudder lost'}
+                            {ship.rudder && ship.wheel && ' • '}
+                            {ship.wheel && '🎯 Wheel lost'}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Last Move (mm)</label>
+                        <input
+                          type="number"
+                          value={ship.lastMove}
+                          min="0"
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value) || 0);
+                            setShips(ships.map(s => 
+                              s.id === ship.id ? { ...s, lastMove: val } : s
+                            ));
+                          }}
+                          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <div className="p-2 bg-slate-800 rounded">
+                        <div className="text-slate-400 mb-1">Base Speed:</div>
+                        <div className="font-mono text-lg text-green-400">{movement.base}mm</div>
+                      </div>
+                      <div className="p-2 bg-slate-800 rounded">
+                        <div className="text-slate-400 mb-1">Max After Damage:</div>
+                        <div className={`font-mono text-lg ${
+                          ship.sailsLost.length > 0 ? 'text-yellow-400' : 'text-blue-400'
+                        }`}>{movement.maxSpeed}mm</div>
+                        {ship.sailsLost.length > 0 && (
+                          <div className="text-xs text-red-400 mt-1">
+                            -{Math.round((ship.sailsLost.length / ship.sails) * 100)}% sails lost
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-900 rounded border border-cyan-600">
+                      <div className="text-slate-400 text-xs mb-1">Allowed Range This Turn:</div>
+                      <div className="font-mono text-xl text-cyan-400 font-bold">{movement.allowedRange}</div>
+                      {ship.sailsLost.length > 0 && (
+                        <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-xs">
+                          <div className="text-red-300 font-bold">⛵ Sail Damage Impact</div>
+                          <div className="text-red-200 mb-1">
+                            Lost {ship.sailsLost.length}/{ship.sails} sails = 
+                            -{Math.round(movement.base * (ship.sailsLost.length / ship.sails) * 100) / 100}mm speed
+                          </div>
+                          <div className="text-xs text-red-300">
+                            Lost: {ship.sailsLost.map(s => s.name).join(', ')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {activeTab === 'gunnery' && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <h2 className="text-sm font-bold mb-2">Gunnery</h2>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Firing Ship</label>
+                  <select
+                    value={gunneryForm.firingShipId}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, firingShipId: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option value="">Select...</option>
+                    {ships.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Target Ship</label>
+                  <select
+                    value={gunneryForm.targetShipId}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, targetShipId: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option value="">Select...</option>
+                    {ships.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Firing Arc</label>
+                  <select
+                    value={gunneryForm.arc}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, arc: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option>Port</option>
+                    <option>Starboard</option>
+                    <option>Bow</option>
+                    <option>Stern</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Target Location</label>
+                  <select
+                    value={gunneryForm.targetLocation}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, targetLocation: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option>Port</option>
+                    <option>Starboard</option>
+                    <option>Bow</option>
+                    <option>Stern</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Distance</label>
+                  <input
+                    type="number"
+                    value={gunneryForm.distance}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, distance: parseFloat(e.target.value) }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Shot</label>
+                  <select
+                    value={gunneryForm.shotType}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, shotType: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option>Ball</option>
+                    <option>Double</option>
+                    <option>Dismantling</option>
+                    <option>Grape</option>
+                    <option>Canister</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Aim</label>
+                  <select
+                    value={gunneryForm.aimType}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, aimType: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option>Hull</option>
+                    <option>Rigging</option>
+                    <option>Crew</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Rake</label>
+                  <select
+                    value={gunneryForm.rakeType}
+                    onChange={(e) => setGunneryForm(prev => ({ ...prev, rakeType: e.target.value }))}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                  >
+                    <option>None</option>
+                    <option>Bow</option>
+                    <option>Stern</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={gunneryForm.useInitialBroadside}
+                  onChange={(e) => setGunneryForm(prev => ({ ...prev, useInitialBroadside: e.target.checked }))}
+                />
+                <label className="text-xs">Use Initial Broadside (+50)</label>
+              </div>
+
+              <button onClick={executeGunnery} className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 rounded font-bold text-sm">
+                🔥 FIRE!
+              </button>
+
+              {lastGunneryResult && (
+                <div className="mt-2 p-2 bg-green-900/20 border-2 border-green-600 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-green-300 font-bold text-sm">✓ HIT!</div>
+                    <button onClick={() => setLastGunneryResult(null)} className="px-2 py-0.5 bg-slate-700 rounded text-xs">
+                      Clear
+                    </button>
+                  </div>
+                  <div className="text-xs">
+                    <div className="mb-1">
+                      <strong>{lastGunneryResult.firingShip}</strong> ({lastGunneryResult.arc}) → 
+                      <strong> {lastGunneryResult.targetShip}</strong> ({lastGunneryResult.targetLocation})
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2 p-2 bg-slate-900/50 rounded">
+                      <div className="text-center">
+                        <div className="text-xs text-slate-400">Hits</div>
+                        <div className="text-lg font-bold text-cyan-400">{lastGunneryResult.totalHits}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs text-slate-400">Damage</div>
+                        <div className="text-lg font-bold text-red-400">{lastGunneryResult.totalDamage}</div>
+                      </div>
+                    </div>
+                    {lastGunneryResult.aimType === 'Crew' && (
+                      <div className="mb-2 p-2 bg-red-900/30 border border-red-700 rounded text-center text-xs">
+                        💀 {lastGunneryResult.crewLost} casualties
+                      </div>
+                    )}
+                    <button
+                      onClick={applyDamage}
+                      className="w-full px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded font-bold text-xs"
+                    >
+                      ⚡ APPLY DAMAGE
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'damage' && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <h2 className="text-sm font-bold mb-2">Damage Status</h2>
+            {ships.length === 0 ? (
+              <div className="text-slate-400 text-center py-8 text-xs">No ships</div>
+            ) : (
+              <div className="space-y-2">
+                {ships.map(ship => {
+                  const hullPct = Math.floor((ship.hullDamage / ship.hvn) * 100);
+                  const sailPct = Math.floor((ship.sailsLost.length / ship.sails) * 100);
+                  
+                  return (
+                    <div key={ship.id} className="bg-slate-700 rounded p-2 border border-slate-600">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-bold text-xs">{ship.name}</h3>
+                        <div className="flex gap-1 items-center">
+                          {ship.sp === 0 && (
+                            <span className="px-1 py-0.5 rounded text-xs font-bold bg-white text-black">
+                              ⚑
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            ship.sp >= 7 ? 'bg-green-700' :
+                            ship.sp >= 4 ? 'bg-yellow-700' :
+                            'bg-red-700'
+                          }`}>
+                            SP {ship.sp}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2 mb-2">
+                        <div className="p-2 bg-slate-800 rounded text-center">
+                          <div className="text-xs text-slate-400">Hull</div>
+                          <div className={`text-base font-bold ${hullPct >= 80 ? 'text-red-400' : hullPct >= 50 ? 'text-yellow-400' : 'text-green-400'}`}>
+                            {100 - hullPct}%
+                          </div>
+                        </div>
+                        <div className="p-2 bg-slate-800 rounded text-center">
+                          <div className="text-xs text-slate-400">Sails</div>
+                          <div className={`text-base font-bold ${sailPct >= 70 ? 'text-red-400' : sailPct >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
+                            {ship.sails - ship.sailsLost.length}
+                          </div>
+                        </div>
+                        <div className="p-2 bg-slate-800 rounded text-center">
+                          <div className="text-xs text-slate-400">Crew</div>
+                          <div className="text-base font-bold text-slate-200">
+                            {ship.crew - ship.crewLoss}
+                          </div>
+                        </div>
+                      </div>
+
+                      {ship.fires.length > 0 && (
+                        <div className="p-2 bg-orange-900/30 border border-orange-700 rounded text-xs mb-2">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Flame className="w-3 h-3 text-orange-400" />
+                            <span className="font-bold text-orange-300">{ship.fires.length} Fire{ship.fires.length > 1 ? 's' : ''}</span>
+                          </div>
+                          {ship.fires.map((fire, idx) => (
+                            <div key={fire.id} className="text-orange-200">
+                              #{idx + 1}: Age {fire.age} {fire.age >= 4 && <span className="text-red-400 font-bold">(BURNING!)</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(ship.rudder || ship.wheel) && (
+                        <div className="p-2 bg-red-900/30 border border-red-700 rounded text-xs space-y-1">
+                          {ship.rudder && <div className="text-red-300">🎯 Rudder Lost</div>}
+                          {ship.wheel && <div className="text-red-300">🎯 Wheel Lost</div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'boarding' && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <h2 className="text-sm font-bold mb-3">⚔️ Boarding Actions</h2>
+            
+            {ships.filter(s => s.grappled && s.status === 'Active').length === 0 ? (
+              <div className="text-slate-400 text-center py-8 text-xs">
+                No ships grappled. Use Ships tab to grapple ships together.
+              </div>
+            ) : (
+              ships.filter(s => s.grappled && s.status === 'Active').map(ship => {
+                const grappledShip = ships.find(s => s.id === ship.grappled);
+                if (!grappledShip) return null;
+                
+                return (
+                  <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3">
+                    <h3 className="text-sm font-bold mb-2">
+                      {ship.name} vs {grappledShip.name}
+                    </h3>
+                    
+                    {ship.grappledTurns < 1 && (
+                      <div className="bg-yellow-900/30 border border-yellow-600 rounded p-2 mb-2 text-xs">
+                        ⚠️ Must wait 1 turn after grappling before boarding actions
+                      </div>
+                    )}
+                    
+                    {ship.grappledTurns >= 1 && ship.boardingState && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => performBoardingAction(ship.id, grappledShip.id, 'portBulwark')}
+                          className={`px-3 py-2 rounded text-xs font-bold ${
+                            ship.boardingState.portBulwark === 'attacker' ? 'bg-green-700' :
+                            ship.boardingState.portBulwark === 'defender' ? 'bg-red-700' :
+                            'bg-slate-600 hover:bg-slate-500'
+                          }`}
+                        >
+                          Port Bulwark{ship.boardingState.portBulwark === 'attacker' && ' ✓'}
+                        </button>
+                        <button
+                          onClick={() => performBoardingAction(ship.id, grappledShip.id, 'starboardBulwark')}
+                          className={`px-3 py-2 rounded text-xs font-bold ${
+                            ship.boardingState.starboardBulwark === 'attacker' ? 'bg-green-700' :
+                            ship.boardingState.starboardBulwark === 'defender' ? 'bg-red-700' :
+                            'bg-slate-600 hover:bg-slate-500'
+                          }`}
+                        >
+                          Starboard Bulwark{ship.boardingState.starboardBulwark === 'attacker' && ' ✓'}
+                        </button>
+                        <button
+                          onClick={() => performBoardingAction(ship.id, grappledShip.id, 'firstHalfDeck')}
+                          className={`px-3 py-2 rounded text-xs font-bold ${
+                            ship.boardingState.firstHalfDeck === 'attacker' ? 'bg-green-700' :
+                            ship.boardingState.firstHalfDeck === 'defender' ? 'bg-red-700' :
+                            'bg-slate-600 hover:bg-slate-500'
+                          }`}
+                        >
+                          1st Half Deck{ship.boardingState.firstHalfDeck === 'attacker' && ' ✓'}
+                        </button>
+                        <button
+                          onClick={() => performBoardingAction(ship.id, grappledShip.id, 'secondHalfDeck')}
+                          className={`px-3 py-2 rounded text-xs font-bold ${
+                            ship.boardingState.secondHalfDeck === 'attacker' ? 'bg-green-700' :
+                            ship.boardingState.secondHalfDeck === 'defender' ? 'bg-red-700' :
+                            'bg-slate-600 hover:bg-slate-500'
+                          }`}
+                        >
+                          2nd Half Deck{ship.boardingState.secondHalfDeck === 'attacker' && ' (CAPTURE!)'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {activeTab === 'crew' && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <h2 className="text-sm font-bold mb-3">👥 Crew Management (Optional M.0)</h2>
+            
+            {ships.map(ship => (
+              <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-bold">{ship.name}</h3>
+                  <label className="flex items-center text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ship.crewAssignmentMode}
+                      onChange={(e) => toggleCrewAssignmentMode(ship.id, e.target.checked)}
+                      className="mr-2"
+                    />
+                    Use Crew Assignment
+                  </label>
+                </div>
+                
+                {ship.crewAssignmentMode && ship.crewAssignments && (
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1 border-b border-slate-600">
+                      <span>Total Available Crew:</span>
+                      <strong>{ship.crew - ship.crewLoss}</strong>
+                    </div>
+                    
+                    <div>
+                      <label className="flex justify-between items-center mb-1">
+                        <span>Gun Crews:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={ship.crewAssignments.gunCrews}
+                          onChange={(e) => updateCrewAssignment(ship.id, 'gunCrews', parseInt(e.target.value) || 0)}
+                          className="w-20 bg-slate-600 rounded px-2 py-1 text-xs"
+                        />
+                      </label>
+                      <div className="text-slate-400 text-xs pl-2">
+                        Required: {calculateRequiredGunCrew(ship)}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="flex justify-between items-center mb-1">
+                        <span>Sailing Crew:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={ship.crewAssignments.sailingCrew}
+                          onChange={(e) => updateCrewAssignment(ship.id, 'sailingCrew', parseInt(e.target.value) || 0)}
+                          className="w-20 bg-slate-600 rounded px-2 py-1 text-xs"
+                        />
+                      </label>
+                      <div className="text-slate-400 text-xs pl-2">
+                        Required: {calculateRequiredSailingCrew(ship)}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="flex justify-between items-center mb-1">
+                        <span>Fire Fighting:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={ship.crewAssignments.fireFighting}
+                          onChange={(e) => updateCrewAssignment(ship.id, 'fireFighting', parseInt(e.target.value) || 0)}
+                          className="w-20 bg-slate-600 rounded px-2 py-1 text-xs"
+                        />
+                      </label>
+                      <div className="text-slate-400 text-xs pl-2">
+                        10% per fire recommended
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-slate-600">
+                      <div className="flex justify-between">
+                        <span>Total Assigned:</span>
+                        <strong>
+                          {Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between text-slate-400 mt-1">
+                        <span>Unassigned:</span>
+                        <span>
+                          {(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'log' && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <h2 className="text-sm font-bold mb-2">Battle Log</h2>
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {log.slice().reverse().map(entry => (
+                <div key={entry.id} className={`text-xs p-2 rounded ${
+                  entry.type === 'error' ? 'bg-red-900/20 text-red-300' :
+                  entry.type === 'success' ? 'bg-green-900/20 text-green-300' :
+                  'bg-slate-700 text-slate-300'
+                }`}>
+                  <span className="text-slate-500">[T{entry.turn}]</span> {entry.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+} 
