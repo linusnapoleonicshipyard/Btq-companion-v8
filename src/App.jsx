@@ -192,10 +192,10 @@ const NATIONALITY_MODIFIERS = {
 };
 
 const GUN_CREW_SIZES = {
-  "48# Long": 14, "42# Long": 14, "36# Long": 14, "32# Long": 12, "30# Long": 12, "29# Long": 12,
-  "24# Long": 12, "18# Long": 8, "12# Long": 8, "9# Long": 6, "8# Long": 6, "6# Long": 4, "4# Long": 3, "3# Long": 3,
-  "68# Carronade": 4, "42# Carronade": 4, "36# Carronade": 4, "32# Carronade": 3, 
-  "24# Carronade": 3, "18# Carronade": 3, "12# Carronade": 3
+  "48# Long": 14, "42# Long": 14, "36# Long": 12, "32# Long": 12, "30# Long": 12, "29# Long": 12,
+  "24# Long": 10, "18# Long": 8, "12# Long": 8, "9# Long": 6, "8# Long": 6, "6# Long": 4, "4# Long": 4, "3# Long": 3,
+  "68# Carronade": 4, "42# Carronade": 4, "36# Carronade": 4, "32# Carronade": 4, 
+  "24# Carronade": 3, "18# Carronade": 3, "12# Carronade": 2
 };
 
 // COMPLETE MOVEMENT TABLES WITH DRIFTING
@@ -304,22 +304,46 @@ const BOARDING_CASUALTY_TABLES = {
     { min: 1, max: 25, casualties: 12 }
   ],
   "Great Britain - Royal Navy 1775-1815": [
-    { min: 76, max: 100, casualties: 3 },
-    { min: 56, max: 75, casualties: 6 },
-    { min: 26, max: 55, casualties: 9 },
-    { min: 1, max: 25, casualties: 12 }
+    { min: 82, max: 100, casualties: 3 },
+    { min: 34, max: 81, casualties: 6 },
+    { min: 25, max: 33, casualties: 9 },
+    { min: 1, max: 24, casualties: 12 }
   ],
   "France - Imperial Navy 1803-1815": [
-    { min: 76, max: 100, casualties: 9 },
-    { min: 56, max: 75, casualties: 15 },
-    { min: 26, max: 55, casualties: 18 },
-    { min: 1, max: 25, casualties: 39 }
+    { min: 82, max: 100, casualties: 9 },
+    { min: 73, max: 81, casualties: 15 },
+    { min: 37, max: 72, casualties: 18 },
+    { min: 1, max: 36, casualties: 39 }
   ],
   "Spain 1792-1808": [
-    { min: 76, max: 100, casualties: 9 },
-    { min: 56, max: 75, casualties: 24 },
-    { min: 26, max: 55, casualties: 30 },
-    { min: 1, max: 25, casualties: 45 }
+    { min: 84, max: 100, casualties: 9 },
+    { min: 67, max: 83, casualties: 24 },
+    { min: 50, max: 66, casualties: 30 },
+    { min: 1, max: 49, casualties: 45 }
+  ],
+  "Portugal": [
+    { min: 84, max: 100, casualties: 9 },
+    { min: 67, max: 83, casualties: 24 },
+    { min: 50, max: 66, casualties: 30 },
+    { min: 1, max: 49, casualties: 45 }
+  ],
+  "Holland": [
+    { min: 82, max: 100, casualties: 9 },
+    { min: 73, max: 81, casualties: 15 },
+    { min: 37, max: 72, casualties: 18 },
+    { min: 1, max: 36, casualties: 39 }
+  ],
+  "Sweden": [
+    { min: 82, max: 100, casualties: 6 },
+    { min: 34, max: 81, casualties: 9 },
+    { min: 25, max: 33, casualties: 11 },
+    { min: 1, max: 24, casualties: 18 }
+  ],
+  "Denmark": [
+    { min: 82, max: 100, casualties: 6 },
+    { min: 34, max: 81, casualties: 9 },
+    { min: 25, max: 33, casualties: 11 },
+    { min: 1, max: 24, casualties: 18 }
   ],
   "Russia 1792-1815": [
     { min: 82, max: 100, casualties: 6 },
@@ -328,10 +352,10 @@ const BOARDING_CASUALTY_TABLES = {
     { min: 1, max: 24, casualties: 18 }
   ],
   "_default": [
-    { min: 82, max: 100, casualties: 15 },
-    { min: 34, max: 81, casualties: 30 },
-    { min: 25, max: 33, casualties: 39 },
-    { min: 1, max: 24, casualties: 45 }
+    { min: 81, max: 100, casualties: 15 },
+    { min: 61, max: 80, casualties: 30 },
+    { min: 41, max: 60, casualties: 39 },
+    { min: 1, max: 40, casualties: 45 }
   ]
 };
 
@@ -357,6 +381,8 @@ export default function BTQCompanion() {
   });
   const [lastGunneryResult, setLastGunneryResult] = useState(null);
   const [previousTurnState, setPreviousTurnState] = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   
   // V8 STATE
   const [useEnhancedFire, setUseEnhancedFire] = useState(true);
@@ -418,6 +444,15 @@ export default function BTQCompanion() {
       return;
     }
 
+    // Calculate available gun crew (BTQ M.3 - Gun Crews must be fully manned)
+    let availableGunCrew;
+    if (firingShip.crewAssignmentMode && firingShip.crewAssignments) {
+      availableGunCrew = firingShip.crewAssignments.gunCrews;
+    } else {
+      // If crew mode disabled, assume all crew available for guns
+      availableGunCrew = firingShip.crew - firingShip.crewLoss;
+    }
+
     if (rakeType !== 'None' && shotType !== 'Ball') {
       addLog('⚠️ Raking requires Ball shot', 'error');
       return;
@@ -438,8 +473,23 @@ export default function BTQCompanion() {
     
     let totalHits = 0;
     let totalDamage = 0;
+    let totalGunsFiring = 0;
+    let totalGunsAvailable = 0;
+    let crewPoolRemaining = availableGunCrew;
 
+    // Calculate how many guns can actually fire based on full crew requirements
     availableGuns.forEach(gun => {
+      totalGunsAvailable += gun.count;
+      
+      const crewPerGun = GUN_CREW_SIZES[gun.type] || 6;
+      const gunsCanMan = Math.floor(crewPoolRemaining / crewPerGun);
+      const gunsFiring = Math.min(gunsCanMan, gun.count);
+      
+      if (gunsFiring === 0) return; // Not enough crew for even one gun
+      
+      totalGunsFiring += gunsFiring;
+      crewPoolRemaining -= gunsFiring * crewPerGun;
+      
       const rangeBand = getRangeBand(gun.type, distance);
       if (rangeBand === 'Out of Range') return;
       if (!canFireShot(shotType, rangeBand, aimType)) return;
@@ -450,7 +500,7 @@ export default function BTQCompanion() {
       if (rangeBand === 'Close') roll = Math.min(1.0, roll + 0.13);
 
       const rangeModifier = rangeBand === 'PB' ? 1.0 : RANGE_MODIFIERS[rangeBand];
-      const hits = rangeBand === 'PB' ? gun.count : roll * rangeModifier * gun.count;
+      const hits = rangeBand === 'PB' ? gunsFiring : roll * rangeModifier * gunsFiring;
       const damage = hits * gun.poundage * ngm * shotMod * rakeMod;
       
       totalHits += hits;
@@ -458,7 +508,7 @@ export default function BTQCompanion() {
     });
 
     if (totalHits === 0) {
-      addLog('⚠️ No guns could fire', 'error');
+      addLog('⚠️ No guns could fire (insufficient crew to man any guns)', 'error');
       return;
     }
 
@@ -497,6 +547,8 @@ export default function BTQCompanion() {
       }));
     }
 
+    const unmannedGuns = totalGunsAvailable - totalGunsFiring;
+
     const result = {
       totalHits: totalHits.toFixed(1),
       totalDamage,
@@ -510,11 +562,19 @@ export default function BTQCompanion() {
       arc,
       targetLocation,
       distance,
-      ibUsed: ibAvailable
+      ibUsed: ibAvailable,
+      gunsFiring: totalGunsFiring,
+      gunsAvailable: totalGunsAvailable,
+      unmannedGuns: unmannedGuns > 0 ? unmannedGuns : null
     };
 
     setLastGunneryResult(result);
-    addLog(`💥 ${firingShip.name} fires at ${targetLocation}: ${totalHits.toFixed(1)} hits, ${totalDamage} dmg`, 'success');
+    
+    let logMsg = `💥 ${firingShip.name} fires ${totalGunsFiring} guns at ${targetLocation}: ${totalHits.toFixed(1)} hits, ${totalDamage} dmg`;
+    if (unmannedGuns > 0) {
+      logMsg += ` (${unmannedGuns} guns unmanned)`;
+    }
+    addLog(logMsg, 'success');
   };
 
   // === DAMAGE APPLICATION ===
@@ -649,12 +709,19 @@ export default function BTQCompanion() {
       damageLog.push(`💥 Gun lost: ${randomGunGroup.type} (${arcToHit}) → ${crewLoss} crew`);
     }
     
+    // Auto-adjust crew assignments if casualties occurred
+    updatedShip = adjustCrewAssignmentsForCasualties(updatedShip);
+    
     return { ship: updatedShip, log: damageLog };
   };
 
   const applyCrewDamage = (ship, casualties) => {
-    const updatedShip = { ...ship };
+    let updatedShip = { ...ship };
     updatedShip.crewLoss += casualties;
+    
+    // Auto-adjust crew assignments if over-allocated due to casualties
+    updatedShip = adjustCrewAssignmentsForCasualties(updatedShip);
+    
     return {
       ship: updatedShip,
       log: [`💀 ${casualties} casualties`]
@@ -865,44 +932,76 @@ export default function BTQCompanion() {
       return;
     }
     
+    // CORRECT BTQ BOARDING RULES (8.32-8.33)
     const attackerCrew = attacker.crew - attacker.crewLoss;
     const defenderCrew = defender.crew - defender.crewLoss;
     
-    const roll = Math.random() * 100 + 1;
+    // Each side rolls d100 separately (8.32)
+    const attackerRoll = Math.floor(Math.random() * 100) + 1;
+    const defenderRoll = Math.floor(Math.random() * 100) + 1;
+    
+    // Apply soldier modifiers (N.B.C.F. Modifiers)
+    let attackerMod = 0;
+    let defenderMod = 0;
+    if (attacker.soldierPercent >= 20) attackerMod = 10;
+    else if (attacker.soldierPercent >= 10) attackerMod = 5;
+    if (defender.soldierPercent >= 20) defenderMod = 10;
+    else if (defender.soldierPercent >= 10) defenderMod = 5;
+    
+    const attackerAdjustedRoll = Math.max(1, Math.min(100, attackerRoll + attackerMod));
+    const defenderAdjustedRoll = Math.max(1, Math.min(100, defenderRoll + defenderMod));
+    
+    // Look up Nationality Boarding Casualty Factor (NBCF) from tables
     const attackerTable = BOARDING_CASUALTY_TABLES[attacker.nationality] || BOARDING_CASUALTY_TABLES._default;
     const defenderTable = BOARDING_CASUALTY_TABLES[defender.nationality] || BOARDING_CASUALTY_TABLES._default;
     
-    const attackerCasualty = attackerTable.find(r => roll >= r.min && roll <= r.max)?.casualties || 30;
-    const defenderCasualty = defenderTable.find(r => roll >= r.min && roll <= r.max)?.casualties || 30;
+    const attackerNBCF = attackerTable.find(r => attackerAdjustedRoll >= r.min && attackerAdjustedRoll <= r.max)?.casualties || 15;
+    const defenderNBCF = defenderTable.find(r => defenderAdjustedRoll >= r.min && defenderAdjustedRoll <= r.max)?.casualties || 15;
     
-    const attackerLosses = Math.ceil(attackerCrew * (attackerCasualty / 100));
-    const defenderLosses = Math.ceil(defenderCrew * (defenderCasualty / 100));
+    // Calculate casualties inflicted on enemy (8.33: "Divide boarding party by NBCF = casualties enemy suffers")
+    const defenderLosses = Math.round(attackerCrew / attackerNBCF); // Attacker inflicts on defender
+    const attackerLosses = Math.round(defenderCrew / defenderNBCF); // Defender inflicts on attacker
     
+    // Detailed combat log showing all rolls and calculations
+    addLog(`⚔️ BOARDING COMBAT for ${area}:`, 'info');
+    addLog(`  ${attacker.name}: Roll ${attackerRoll}${attackerMod > 0 ? ` +${attackerMod}` : ''} = ${attackerAdjustedRoll} → NBCF: ${attackerNBCF}`, 'info');
+    addLog(`  ${attackerCrew} crew ÷ ${attackerNBCF} = ${defenderLosses} casualties inflicted on ${defender.name}`, 'info');
+    addLog(`  ${defender.name}: Roll ${defenderRoll}${defenderMod > 0 ? ` +${defenderMod}` : ''} = ${defenderAdjustedRoll} → NBCF: ${defenderNBCF}`, 'info');
+    addLog(`  ${defenderCrew} crew ÷ ${defenderNBCF} = ${attackerLosses} casualties inflicted on ${attacker.name}`, 'info');
+    
+    // Apply casualties (8.34: Side with most casualties retreats one area)
     setShips(prev => prev.map(s => {
       if (s.id === attackerShipId) {
         let newState = { ...s, crewLoss: s.crewLoss + attackerLosses };
         
+        // Auto-adjust crew assignments for casualties
+        newState = adjustCrewAssignmentsForCasualties(newState);
+        
+        // Winner is side that inflicted MORE casualties (suffered LESS)
         if (attackerLosses < defenderLosses) {
           newState.boardingState = { ...s.boardingState, [area]: 'attacker' };
           if (!s.boardingState.activeAttacker) {
             newState.boardingState.activeAttacker = attackerShipId;
           }
           
-          // Check for capture
+          // Check for capture (both half decks controlled)
           if (newState.boardingState.firstHalfDeck === 'attacker' && 
               newState.boardingState.secondHalfDeck === 'attacker') {
             addLog(`🏴 ${s.name} CAPTURES ${defender.name}!`, 'success');
-            // Defender will be marked captured below
           }
-        } else {
+        } else if (defenderLosses < attackerLosses) {
           newState.boardingState = { ...s.boardingState, [area]: 'defender' };
         }
+        // If equal casualties, no change (contested)
         
         return newState;
       }
       
       if (s.id === defenderShipId) {
         let newState = { ...s, crewLoss: s.crewLoss + defenderLosses };
+        
+        // Auto-adjust crew assignments for casualties
+        newState = adjustCrewAssignmentsForCasualties(newState);
         
         // Check if captured
         const attackerBoardingState = ships.find(sh => sh.id === attackerShipId)?.boardingState;
@@ -920,10 +1019,13 @@ export default function BTQCompanion() {
       return s;
     }));
     
+    // Result summary
     if (attackerLosses < defenderLosses) {
-      addLog(`⚔️ ${attacker.name} wins ${area}! (A: -${attackerLosses} crew, D: -${defenderLosses} crew)`, 'success');
+      addLog(`✅ ${attacker.name} WINS ${area}! (Casualties: A: ${attackerLosses}, D: ${defenderLosses})`, 'success');
+    } else if (defenderLosses < attackerLosses) {
+      addLog(`🛡️ ${defender.name} HOLDS ${area}! (Casualties: A: ${attackerLosses}, D: ${defenderLosses})`, 'error');
     } else {
-      addLog(`🛡️ ${defender.name} holds ${area}! (A: -${attackerLosses} crew, D: -${defenderLosses} crew)`, 'info');
+      addLog(`⚔️ DRAW at ${area}! (Equal casualties: ${attackerLosses})`, 'info');
     }
   };
 
@@ -934,7 +1036,7 @@ export default function BTQCompanion() {
   const calculateRequiredGunCrew = (ship) => {
     let totalRequired = 0;
     ship.arcs.Port.forEach(gun => {
-      const crewPerGun = GUN_CREW_SIZES[gun.type?.includes('Long') ? 'Long Gun' : 'Carronade'] || 6;
+      const crewPerGun = GUN_CREW_SIZES[gun.type] || 6;
       totalRequired += crewPerGun * gun.count;
     });
     return totalRequired;
@@ -1003,7 +1105,11 @@ export default function BTQCompanion() {
         const total = Object.values(newAssignments).reduce((sum, v) => sum + v, 0);
         const available = s.crew - s.crewLoss;
         
-        if (total > available) {
+        // Allow reductions even if currently over-assigned (fixing casualties)
+        const oldTotal = Object.values(s.crewAssignments).reduce((sum, v) => sum + v, 0);
+        const isReduction = total <= oldTotal;
+        
+        if (total > available && !isReduction) {
           addLog(`⚠️ Not enough crew! Available: ${available}`, 'error');
           return s;
         }
@@ -1012,6 +1118,28 @@ export default function BTQCompanion() {
       }
       return s;
     }));
+  };
+
+  // Auto-adjust crew assignments when casualties occur
+  const adjustCrewAssignmentsForCasualties = (ship) => {
+    if (!ship.crewAssignmentMode || !ship.crewAssignments) return ship;
+    
+    const available = ship.crew - ship.crewLoss;
+    const currentTotal = Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0);
+    
+    // If over-assigned due to casualties, proportionally reduce all assignments
+    if (currentTotal > available) {
+      const ratio = available / currentTotal;
+      const adjusted = {
+        gunCrews: Math.floor(ship.crewAssignments.gunCrews * ratio),
+        sailingCrew: Math.floor(ship.crewAssignments.sailingCrew * ratio),
+        fireFighting: Math.floor(ship.crewAssignments.fireFighting * ratio)
+      };
+      
+      return { ...ship, crewAssignments: adjusted };
+    }
+    
+    return ship;
   };
 
   const advanceTurn = () => {
@@ -1153,15 +1281,21 @@ export default function BTQCompanion() {
   };
 
   const startNewGame = () => {
-    if (ships.length > 0 && !window.confirm('Start new game? All progress will be lost.')) {
+    if (ships.length > 0) {
+      setShowResetConfirm(true);
       return;
     }
+    performReset();
+  };
+
+  const performReset = () => {
     setShips([]);
     setTurn(1);
     setWind({ strength: 'Gentle breeze', direction: 'N' });
     setLog([]);
     setLastGunneryResult(null);
     setPreviousTurnState(null);
+    setShowResetConfirm(false);
     addLog('🎮 New game started', 'success');
   };
 
@@ -1170,14 +1304,16 @@ export default function BTQCompanion() {
       addLog('⚠️ No previous turn to restart', 'error');
       return;
     }
-    if (!window.confirm('Restart to previous turn?')) {
-      return;
-    }
+    setShowRestartConfirm(true);
+  };
+
+  const performRestart = () => {
     setShips(previousTurnState.ships);
     setTurn(previousTurnState.turn);
     setWind(previousTurnState.wind);
     setLog(previousTurnState.log);
     setPreviousTurnState(null);
+    setShowRestartConfirm(false);
     addLog('↩️ Turn restarted', 'info');
   };
 
@@ -1299,7 +1435,14 @@ export default function BTQCompanion() {
     const speeds = table[wind.strength];
     if (!speeds) return null;
 
-    const base = speeds[ship.pos];
+    let base = speeds[ship.pos];
+    
+    // Apply sailing crew penalty (BTQ M.2.1 - 50% speed if insufficient crew)
+    const sailingPenalty = getSailingCrewPenalty(ship);
+    if (sailingPenalty < 0) {
+      base = Math.floor(base * 0.5); // 50% speed reduction
+    }
+    
     const sailLossPct = (ship.sailsLost.length / ship.sails) * 100;
     const sailPenalty = Math.round(base * sailLossPct / 100);
     
@@ -1317,7 +1460,8 @@ export default function BTQCompanion() {
     return {
       base,
       maxSpeed,
-      allowedRange: `${allowedMin} - ${allowedMax}mm`
+      allowedRange: `${allowedMin} - ${allowedMax}mm`,
+      sailingCrewPenalty: sailingPenalty < 0
     };
   };
 
@@ -1931,6 +2075,18 @@ export default function BTQCompanion() {
                           </div>
                         </div>
                       )}
+                      {movement.sailingCrewPenalty && (
+                        <div className="mt-2 p-2 bg-orange-900/30 border border-orange-700 rounded text-xs">
+                          <div className="text-orange-300 font-bold">👥 Insufficient Sailing Crew!</div>
+                          <div className="text-orange-200">
+                            Speed reduced by 50% due to understaffing
+                          </div>
+                          <div className="text-xs text-orange-300 mt-1">
+                            Required: {calculateRequiredSailingCrew(ship)} | 
+                            Assigned: {ship.crewAssignments?.sailingCrew || 0}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -2089,6 +2245,17 @@ export default function BTQCompanion() {
                     {lastGunneryResult.aimType === 'Crew' && (
                       <div className="mb-2 p-2 bg-red-900/30 border border-red-700 rounded text-center text-xs">
                         💀 {lastGunneryResult.crewLost} casualties
+                      </div>
+                    )}
+                    {lastGunneryResult.unmannedGuns && (
+                      <div className="mb-2 p-2 bg-orange-900/30 border border-orange-700 rounded text-xs">
+                        <div className="text-orange-300 font-bold">⚠️ Insufficient Gun Crews!</div>
+                        <div className="text-orange-200">
+                          Only {lastGunneryResult.gunsFiring} of {lastGunneryResult.gunsAvailable} guns manned
+                        </div>
+                        <div className="text-xs text-orange-300 mt-1">
+                          {lastGunneryResult.unmannedGuns} guns unmanned (need full crew per gun)
+                        </div>
                       </div>
                     )}
                     <button
@@ -2343,10 +2510,18 @@ export default function BTQCompanion() {
                       </div>
                       <div className="flex justify-between text-slate-400 mt-1">
                         <span>Unassigned:</span>
-                        <span>
+                        <span className={(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0) < 0 ? 'text-red-400 font-bold' : ''}>
                           {(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
                         </span>
                       </div>
+                      {(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0) < 0 && (
+                        <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-xs">
+                          <div className="text-red-300 font-bold">⚠️ Over-Assigned!</div>
+                          <div className="text-red-200">
+                            Crew casualties have reduced available crew. Reduce assignments manually.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2368,6 +2543,54 @@ export default function BTQCompanion() {
                   <span className="text-slate-500">[T{entry.turn}]</span> {entry.message}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Reset Game Confirmation Modal */}
+        {showResetConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 rounded-lg p-4 border-2 border-red-600 max-w-sm">
+              <h3 className="text-lg font-bold text-red-400 mb-2">⚠️ Reset Game?</h3>
+              <p className="text-slate-300 mb-4 text-sm">All progress will be lost. Are you sure?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={performReset}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded font-bold text-sm"
+                >
+                  Yes, Reset
+                </button>
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded font-bold text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Restart Turn Confirmation Modal */}
+        {showRestartConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 rounded-lg p-4 border-2 border-yellow-600 max-w-sm">
+              <h3 className="text-lg font-bold text-yellow-400 mb-2">↩️ Restart Turn?</h3>
+              <p className="text-slate-300 mb-4 text-sm">Go back to the previous turn?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={performRestart}
+                  className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded font-bold text-sm"
+                >
+                  Yes, Restart
+                </button>
+                <button
+                  onClick={() => setShowRestartConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded font-bold text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
