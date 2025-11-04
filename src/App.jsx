@@ -289,10 +289,10 @@ const FIRE_SPREAD_CHANCES = {
   "Gale": 60
 };
 
-// ENHANCED FIRE SYSTEM - Magazine Explosion Risk (L.4.3)
+// ENHANCED FIRE SYSTEM - Magazine Explosion Risk (House Rule - Adjusted)
 const MAGAZINE_EXPLOSION_RISK = {
-  1: 0, 2: 0, 3: 0,
-  4: 5, 5: 10, 6: 20, 7: 35, 8: 50
+  1: 0, 2: 0, 3: 0, 4: 0,
+  5: 3, 6: 7, 7: 12, 8: 18, 9: 25
 };
 
 // BOARDING SYSTEM - Nationality Boarding Casualty Factor Tables (H.3)
@@ -433,6 +433,12 @@ export default function BTQCompanion() {
 
     if (!firingShip || !targetShip) {
       addLog('⚠️ Select both ships', 'error');
+      return;
+    }
+    
+    // Check if magazine is flooded
+    if (firingShip.magazineFlooded) {
+      addLog(`⚠️ ${firingShip.name}: Magazine flooded - cannot fire guns!`, 'error');
       return;
     }
 
@@ -609,6 +615,33 @@ export default function BTQCompanion() {
           updatedShip.mastSectionsLost.push(mastSectionKey);
           damageLog.push(`💥 Mast section destroyed: ${randomSail.mast} (section ${randomSail.section})`);
           
+          // HOUSE RULE: Crew casualties from falling mast
+          let minCasualties = 0;
+          let maxCasualties = 5;
+          
+          // Determine casualties by ship class
+          const shipClass = updatedShip.class.toLowerCase();
+          if (shipClass.includes('1st') || shipClass.includes('2nd') || shipClass.includes('3rd')) {
+            // Large ships (1st-3rd rate): 0-15 crew
+            maxCasualties = 15;
+          } else if (shipClass.includes('4th') || shipClass.includes('5th') || shipClass.includes('6th') || 
+                     shipClass.includes('large merchantman') || shipClass.includes('indiaman')) {
+            // Medium ships (4th-6th rate, large merchantmen): 0-10 crew
+            maxCasualties = 10;
+          } else {
+            // Small ships (below 6th rate): 0-5 crew
+            maxCasualties = 5;
+          }
+          
+          const casualties = Math.floor(Math.random() * (maxCasualties + 1));
+          if (casualties > 0) {
+            updatedShip.crewLoss += casualties;
+            damageLog.push(`💀 ${casualties} crew killed by falling mast!`);
+            
+            // Auto-adjust crew assignments if casualties occurred
+            updatedShip = adjustCrewAssignmentsForCasualties(updatedShip);
+          }
+          
           // Cascade: destroy all sails on higher sections of same mast
           const cascadeSails = updatedShip.sailLayout.filter(s => 
             s.mast === randomSail.mast && 
@@ -621,16 +654,21 @@ export default function BTQCompanion() {
             damageLog.push(`  ↳ Cascade: ${sail.name}`);
           });
           
-          // Calculate SP loss from mast sections
+          // Calculate SP loss from mast sections (BTQ 6.98: every 10% = 1 SP)
           const totalSections = updatedShip.sailLayout.length;
           const mastSectionLossPct = Math.floor((updatedShip.mastSectionsLost.length / totalSections) * 100);
           const spFromMastSections = Math.floor(mastSectionLossPct / 10);
-          const oldSP = updatedShip.sp;
-          updatedShip.sp = Math.max(0, 10 - spFromMastSections);
-          const spLoss = oldSP - updatedShip.sp;
           
-          if (spLoss > 0) {
-            damageLog.push(`📊 -${spLoss} SP (${updatedShip.mastSectionsLost.length}/${totalSections} mast sections lost)`);
+          // Track how many SP we've already deducted for mast sections
+          if (!updatedShip.mastSectionsSpDeducted) {
+            updatedShip.mastSectionsSpDeducted = 0;
+          }
+          
+          const newSpLoss = spFromMastSections - updatedShip.mastSectionsSpDeducted;
+          if (newSpLoss > 0) {
+            updatedShip.sp = Math.max(0, updatedShip.sp - newSpLoss);
+            updatedShip.mastSectionsSpDeducted = spFromMastSections;
+            damageLog.push(`📊 -${newSpLoss} SP (${updatedShip.mastSectionsLost.length}/${totalSections} mast sections = ${mastSectionLossPct}%)`);
           }
         }
       }
@@ -654,27 +692,35 @@ export default function BTQCompanion() {
       updatedShip.sp = Math.max(0, updatedShip.sp - spLoss);
       damageLog.push(`📊 -${spLoss} SP (${hullPct}% hull)`);
       
-      // Special damage roll (BTQ 6.5 + house rule) for each SP lost
+      // Special damage roll (House Rule: Fire on 1, then BTQ 6.5 shifted)
       for (let i = 0; i < spLoss; i++) {
         const roll = Math.floor(Math.random() * 100) + 1;
         if (roll === 1) {
-          // House rule: fire starts on 1
-          updatedShip.fires.push({ id: Date.now() + Math.random(), age: 1 });
-          damageLog.push(`🔥 FIRE! (-1 SP)`);
+          // House rule: fire starts on roll 1
+          updatedShip.fires.push({ 
+            id: Date.now() + Math.random(), 
+            age: 0, 
+            intensity: 'Minor', 
+            spreadRolled: false 
+          });
           updatedShip.sp = Math.max(0, updatedShip.sp - 1);
+          damageLog.push(`🔥 FIRE STARTED! (-1 SP)`);
         } else if (roll >= 2 && roll <= 3) {
+          // House rule: Rudder on 2-3 (shifted from BTQ 1-2)
           if (!updatedShip.rudder) {
             updatedShip.rudder = true;
             updatedShip.sp = Math.max(0, updatedShip.sp - 2);
-            damageLog.push(`🎯 RUDDER! (-2 SP)`);
+            damageLog.push(`🎯 RUDDER DESTROYED! (-2 SP, turning -50%)`);
           }
         } else if (roll >= 4 && roll <= 5) {
+          // House rule: Wheel on 4-5 (shifted from BTQ 3-4)
           if (!updatedShip.wheel) {
             updatedShip.wheel = true;
             updatedShip.sp = Math.max(0, updatedShip.sp - 1);
-            damageLog.push(`🎯 WHEEL! (-1 SP)`);
+            damageLog.push(`🎯 WHEEL DESTROYED! (-1 SP, turning -25%)`);
           }
         }
+        // Roll 6-100 = No special damage
       }
     }
     
@@ -800,7 +846,7 @@ export default function BTQCompanion() {
     if (ship.magazineFlooded) return false;
     if (!useEnhancedFire) return false;
     
-    const risk = MAGAZINE_EXPLOSION_RISK[Math.min(fire.age, 8)] || 50;
+    const risk = MAGAZINE_EXPLOSION_RISK[Math.min(fire.age, 9)] || 25;
     const roll = Math.random() * 100;
     
     if (roll <= risk) {
@@ -864,6 +910,7 @@ export default function BTQCompanion() {
             ...s,
             grappled: s.id === attackerShipId ? defenderShipId : attackerShipId,
             grappledTurns: 0,
+            sp: Math.max(0, s.sp - 2), // BTQ 6.98: -2 SP for being grappled
             boardingState: {
               portBulwark: null,
               starboardBulwark: null,
@@ -875,7 +922,7 @@ export default function BTQCompanion() {
         }
         return s;
       }));
-      addLog(`⚓ ${attacker.name} grapples ${defender.name}!`, 'success');
+      addLog(`⚓ ${attacker.name} grapples ${defender.name}! (Both ships -2 SP)`, 'success');
     } else {
       addLog(`⚓ ${attacker.name} fails to grapple ${defender.name}`, 'error');
     }
@@ -1184,6 +1231,37 @@ export default function BTQCompanion() {
               intensity: 'Minor', 
               spreadRolled: false 
             }];
+          }
+        }
+        
+        // HOUSE RULE: Fire crew casualties based on intensity
+        if (useEnhancedFire) {
+          let casualtyChance = 0;
+          let minCasualties = 0;
+          let maxCasualties = 0;
+          
+          if (newIntensity === 'Minor') {
+            casualtyChance = 10; // 10% chance
+            minCasualties = 1;
+            maxCasualties = 3;
+          } else if (newIntensity === 'Major') {
+            casualtyChance = 25; // 25% chance
+            minCasualties = 2;
+            maxCasualties = 5;
+          } else if (newIntensity === 'Conflagration') {
+            casualtyChance = 50; // 50% chance
+            minCasualties = 3;
+            maxCasualties = 8;
+          }
+          
+          const casualtyRoll = Math.random() * 100;
+          if (casualtyRoll <= casualtyChance) {
+            const casualties = Math.floor(Math.random() * (maxCasualties - minCasualties + 1)) + minCasualties;
+            updatedShip.crewLoss += casualties;
+            addLog(`🔥💀 ${ship.name}: Fire kills ${casualties} crew! (${newIntensity})`, 'error');
+            
+            // Auto-adjust crew assignments if casualties occurred
+            updatedShip = adjustCrewAssignmentsForCasualties(updatedShip);
           }
         }
         
@@ -1526,6 +1604,7 @@ export default function BTQCompanion() {
       gdnCarry: 0,
       sailsLost: [],
       mastSectionsLost: [],
+      mastSectionsSpDeducted: 0, // Track SP already deducted from mast sections
       lastMove: 0,
       turnPoints: 0,
       pos: 'Ru',
@@ -2331,16 +2410,47 @@ export default function BTQCompanion() {
                           </div>
                           {ship.fires.map((fire, idx) => (
                             <div key={fire.id} className="text-orange-200">
-                              #{idx + 1}: Age {fire.age} {fire.age >= 4 && <span className="text-red-400 font-bold">(BURNING!)</span>}
+                              #{idx + 1}: Age {fire.age}, {fire.intensity} {fire.age >= 4 && <span className="text-red-400 font-bold">(⚠️ Explosion risk!)</span>}
                             </div>
                           ))}
+                          
+                          <div className="flex gap-1 mt-2">
+                            <button
+                              onClick={() => toggleOrganizedFireParty(ship.id)}
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
+                                ship.organizedFireParty 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              {ship.organizedFireParty ? '✓ ' : ''}Fire Party
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (ship.magazineFlooded) {
+                                  addLog(`${ship.name}: Magazine already flooded`, 'info');
+                                } else if (window.confirm(`Flood ${ship.name}'s magazine? This will disable ALL guns permanently but prevent magazine explosions.`)) {
+                                  floodMagazine(ship.id);
+                                }
+                              }}
+                              disabled={ship.magazineFlooded}
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
+                                ship.magazineFlooded
+                                  ? 'bg-blue-900/50 text-blue-300 cursor-not-allowed'
+                                  : 'bg-red-700 text-white hover:bg-red-600'
+                              }`}
+                            >
+                              {ship.magazineFlooded ? '✓ Flooded' : '💧 Flood Mag'}
+                            </button>
+                          </div>
                         </div>
                       )}
 
-                      {(ship.rudder || ship.wheel) && (
+                      {(ship.rudder || ship.wheel || ship.magazineFlooded) && (
                         <div className="p-2 bg-red-900/30 border border-red-700 rounded text-xs space-y-1">
                           {ship.rudder && <div className="text-red-300">🎯 Rudder Lost</div>}
                           {ship.wheel && <div className="text-red-300">🎯 Wheel Lost</div>}
+                          {ship.magazineFlooded && <div className="text-blue-300">💧 Magazine Flooded (All guns disabled)</div>}
                         </div>
                       )}
                     </div>
