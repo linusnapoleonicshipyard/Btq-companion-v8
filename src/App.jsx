@@ -584,10 +584,43 @@ export default function BTQCompanion() {
   };
 
   // === DAMAGE APPLICATION ===
+  
+  const adjustCrewAssignmentsForCasualties = (ship) => {
+    if (!ship.crewAssignmentMode || !ship.crewAssignments) return ship;
+    
+    const available = ship.crew - ship.crewLoss;
+    const currentTotal = Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0);
+    
+    // If over-assigned due to casualties, proportionally reduce all assignments
+    if (currentTotal > available) {
+      const ratio = available / currentTotal;
+      const adjusted = {
+        gunCrews: Math.floor(ship.crewAssignments.gunCrews * ratio),
+        sailingCrew: Math.floor(ship.crewAssignments.sailingCrew * ratio),
+        fireFighting: Math.floor(ship.crewAssignments.fireFighting * ratio)
+      };
+      
+      return { ...ship, crewAssignments: adjusted };
+    }
+    
+    return ship;
+  };
 
   const applySailDamage = (ship, damage) => {
-    const updatedShip = { ...ship };
+    let updatedShip = { ...ship };
     let damageLog = [];
+    
+    // Ensure required arrays exist
+    if (!Array.isArray(updatedShip.sailsLost)) {
+      updatedShip.sailsLost = [];
+    }
+    if (!Array.isArray(updatedShip.mastSectionsLost)) {
+      updatedShip.mastSectionsLost = [];
+    }
+    if (!Array.isArray(updatedShip.sailLayout)) {
+      console.error('Ship missing sailLayout:', ship);
+      return { ship: updatedShip, log: ['⚠️ Error: Ship missing sail layout'] };
+    }
     
     updatedShip.sailDamage += damage;
     
@@ -652,6 +685,12 @@ export default function BTQCompanion() {
           cascadeSails.forEach(sail => {
             updatedShip.sailsLost.push(sail);
             damageLog.push(`  ↳ Cascade: ${sail.name}`);
+            
+            // Also track the cascaded mast sections as destroyed
+            const cascadedMastSectionKey = `${sail.mast}-${sail.section}`;
+            if (!updatedShip.mastSectionsLost.includes(cascadedMastSectionKey)) {
+              updatedShip.mastSectionsLost.push(cascadedMastSectionKey);
+            }
           });
           
           // Calculate SP loss from mast sections (BTQ 6.98: every 10% = 1 SP)
@@ -678,8 +717,13 @@ export default function BTQCompanion() {
   };
 
   const applyHullDamage = (ship, damage, targetLocation) => {
-    const updatedShip = { ...ship };
+    let updatedShip = { ...ship };
     let damageLog = [];
+    
+    // Ensure fires array exists
+    if (!Array.isArray(updatedShip.fires)) {
+      updatedShip.fires = [];
+    }
     
     updatedShip.hullDamage += damage;
     updatedShip.gdnCarry += damage;
@@ -775,12 +819,21 @@ export default function BTQCompanion() {
   };
 
   const applyDamage = () => {
-    if (!lastGunneryResult) return;
+    if (!lastGunneryResult) {
+      console.error('No gunnery result to apply');
+      return;
+    }
     
     const targetShipId = lastGunneryResult.targetShipId;
     const damage = lastGunneryResult.totalDamage;
     const aimType = lastGunneryResult.aimType;
     const targetLocation = lastGunneryResult.targetLocation;
+    
+    if (!targetShipId || damage === undefined || !aimType) {
+      console.error('Invalid gunnery result:', lastGunneryResult);
+      addLog('⚠️ Error: Invalid damage data', 'error');
+      return;
+    }
     
     setShips(prevShips => prevShips.map(s => {
       if (s.id !== targetShipId) return s;
@@ -788,28 +841,45 @@ export default function BTQCompanion() {
       let result;
       let allLogs = [];
       
-      if (aimType === 'Rigging') {
-        result = applySailDamage(s, damage);
-        allLogs = result.log;
-      } else if (aimType === 'Hull') {
-        result = applyHullDamage(s, damage, targetLocation);
-        allLogs = result.log;
-      } else if (aimType === 'Crew') {
-        const casualties = Math.floor(damage / 3);
-        result = applyCrewDamage(s, casualties);
-        allLogs = result.log;
+      try {
+        if (aimType === 'Rigging') {
+          result = applySailDamage(s, damage);
+          allLogs = result.log;
+        } else if (aimType === 'Hull') {
+          result = applyHullDamage(s, damage, targetLocation);
+          allLogs = result.log;
+        } else if (aimType === 'Crew') {
+          const casualties = Math.floor(damage / 3);
+          result = applyCrewDamage(s, casualties);
+          allLogs = result.log;
+        } else {
+          // Fallback for unknown aim type
+          console.error('Unknown aim type:', aimType);
+          result = { ship: s, log: [`⚠️ Unknown aim type: ${aimType}`] };
+          allLogs = result.log;
+        }
+        
+        if (!result || !result.ship) {
+          console.error('Damage function returned invalid result:', result);
+          return s; // Return unchanged ship if something went wrong
+        }
+        
+        allLogs.forEach(msg => addLog(`${s.name}: ${msg}`, 'error'));
+        
+        // Check for surrender (BTQ 6.94)
+        if (result.ship.sp === 0 && s.sp > 0) {
+          addLog(`⚑ ${s.name} STRIKES COLORS! (0 SP)`, 'error');
+        }
+        
+        return result.ship;
+      } catch (error) {
+        console.error('Error applying damage:', error);
+        addLog(`⚠️ Error applying damage to ${s.name}: ${error.message}`, 'error');
+        return s; // Return unchanged ship if error occurs
       }
-      
-      allLogs.forEach(msg => addLog(`${s.name}: ${msg}`, 'error'));
-      
-      // Check for surrender (BTQ 6.94)
-      if (result.ship.sp === 0 && s.sp > 0) {
-        addLog(`⚑ ${s.name} STRIKES COLORS! (0 SP)`, 'error');
-      }
-      
-      return result.ship;
     }));
     
+    setLastGunneryResult(null); // Clear the result after applying
     addLog('✅ Damage applied', 'success');
   };
 
@@ -870,13 +940,19 @@ export default function BTQCompanion() {
   };
 
   const floodMagazine = (shipId) => {
-    setShips(prev => prev.map(s => {
-      if (s.id === shipId) {
-        addLog(`💧 ${s.name}: Magazine flooded - all guns disabled but explosion prevented`, 'info');
-        return { ...s, magazineFlooded: true };
-      }
-      return s;
-    }));
+    console.log('floodMagazine called with shipId:', shipId);
+    setShips(prev => {
+      const updated = prev.map(s => {
+        if (s.id === shipId) {
+          console.log('Flooding magazine for ship:', s.name);
+          addLog(`💧 ${s.name}: Magazine flooded - all guns disabled but explosion prevented`, 'info');
+          return { ...s, magazineFlooded: true };
+        }
+        return s;
+      });
+      console.log('Ships updated after flood');
+      return updated;
+    });
   };
 
   const toggleOrganizedFireParty = (shipId) => {
@@ -1168,27 +1244,6 @@ export default function BTQCompanion() {
   };
 
   // Auto-adjust crew assignments when casualties occur
-  const adjustCrewAssignmentsForCasualties = (ship) => {
-    if (!ship.crewAssignmentMode || !ship.crewAssignments) return ship;
-    
-    const available = ship.crew - ship.crewLoss;
-    const currentTotal = Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0);
-    
-    // If over-assigned due to casualties, proportionally reduce all assignments
-    if (currentTotal > available) {
-      const ratio = available / currentTotal;
-      const adjusted = {
-        gunCrews: Math.floor(ship.crewAssignments.gunCrews * ratio),
-        sailingCrew: Math.floor(ship.crewAssignments.sailingCrew * ratio),
-        fireFighting: Math.floor(ship.crewAssignments.fireFighting * ratio)
-      };
-      
-      return { ...ship, crewAssignments: adjusted };
-    }
-    
-    return ship;
-  };
-
   const advanceTurn = () => {
     // Save current state before advancing
     setPreviousTurnState({
@@ -2056,6 +2111,31 @@ export default function BTQCompanion() {
                   <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3 border border-slate-600">
                     <h3 className="font-bold mb-2 text-sm">{ship.name}</h3>
                     
+                    {/* BTQ 4.26 & 6.52: Tacking Restrictions */}
+                    {(ship.mastSectionsLost.length > 0 || 
+                      ship.rudder || 
+                      ship.wheel || 
+                      ['Calm', 'Slight breeze', 'Light breeze'].includes(wind.strength)) && (
+                      <div className="mb-2 p-2 bg-red-900/30 border border-red-700 rounded text-xs">
+                        <div className="font-bold text-red-300 mb-1">🚫 TACKING RESTRICTED (BTQ 4.26 & 6.52)</div>
+                        <div className="text-red-200 space-y-0.5">
+                          {ship.mastSectionsLost.length > 0 && (
+                            <div>• {ship.mastSectionsLost.length} mast section{ship.mastSectionsLost.length > 1 ? 's' : ''} lost - cannot tack</div>
+                          )}
+                          {ship.rudder && (
+                            <div>• Rudder destroyed - cannot tack</div>
+                          )}
+                          {ship.wheel && (
+                            <div>• Wheel destroyed - cannot tack</div>
+                          )}
+                          {['Calm', 'Slight breeze', 'Light breeze'].includes(wind.strength) && (
+                            <div>• Wind too light ({wind.strength}) - cannot tack</div>
+                          )}
+                          <div className="text-yellow-300 mt-1">✓ Use WEARING instead (turn stern through wind)</div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-3 gap-2 mb-2">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Point of Sail</label>
@@ -2426,12 +2506,25 @@ export default function BTQCompanion() {
                               {ship.organizedFireParty ? '✓ ' : ''}Fire Party
                             </button>
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('=== FLOOD MAG BUTTON CLICKED ===');
+                                console.log('Ship:', ship.name);
+                                console.log('Ship ID:', ship.id);
+                                console.log('Magazine Flooded:', ship.magazineFlooded);
+                                
                                 if (ship.magazineFlooded) {
                                   addLog(`${ship.name}: Magazine already flooded`, 'info');
-                                } else if (window.confirm(`Flood ${ship.name}'s magazine? This will disable ALL guns permanently but prevent magazine explosions.`)) {
-                                  floodMagazine(ship.id);
+                                  alert('Magazine already flooded!');
+                                  return;
                                 }
+                                
+                                // Simple direct flood without confirmation for testing
+                                console.log('About to flood magazine...');
+                                floodMagazine(ship.id);
+                                addLog(`💧 ${ship.name}: FLOOD MAGAZINE CLICKED`, 'success');
+                                alert('Magazine flooded!');
                               }}
                               disabled={ship.magazineFlooded}
                               className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
@@ -2439,6 +2532,7 @@ export default function BTQCompanion() {
                                   ? 'bg-blue-900/50 text-blue-300 cursor-not-allowed'
                                   : 'bg-red-700 text-white hover:bg-red-600'
                               }`}
+                              type="button"
                             >
                               {ship.magazineFlooded ? '✓ Flooded' : '💧 Flood Mag'}
                             </button>
