@@ -2528,11 +2528,11 @@ export default function BTQCompanion() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2 mb-2 p-2 bg-[#d4c4a8]/50 rounded">
                       <div className="text-center">
-                        <div className="text-xs style={{ color: "#c9b896" }}">Hits</div>
+                        <div style={{ color: "#c9b896" }} className="text-xs">Hits</div>
                         <div className="text-lg font-bold text-[#c5a572]">{lastGunneryResult.totalHits}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs style={{ color: "#c9b896" }}">Damage</div>
+                        <div style={{ color: "#c9b896" }} className="text-xs">Damage</div>
                         <div className="text-lg font-bold text-red-400">{lastGunneryResult.totalDamage}</div>
                       </div>
                     </div>
@@ -2598,19 +2598,19 @@ export default function BTQCompanion() {
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2 mb-2">
                         <div className="p-2 bg-[#4a3f2f] rounded text-center">
-                          <div className="text-xs style={{ color: "#c9b896" }}">Hull</div>
+                          <div style={{ color: "#c9b896" }} className="text-xs">Hull</div>
                           <div className={`text-base font-bold ${hullPct >= 80 ? 'text-red-400' : hullPct >= 50 ? 'text-yellow-400' : 'text-green-400'}`}>
                             {100 - hullPct}%
                           </div>
                         </div>
                         <div className="p-2 bg-[#4a3f2f] rounded text-center">
-                          <div className="text-xs style={{ color: "#c9b896" }}">Sails</div>
+                          <div style={{ color: "#c9b896" }} className="text-xs">Sails</div>
                           <div className={`text-base font-bold ${sailPct >= 70 ? 'text-red-400' : sailPct >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
                             {ship.sails - ship.sailsLost.length}
                           </div>
                         </div>
                         <div className="p-2 bg-[#4a3f2f] rounded text-center">
-                          <div className="text-xs style={{ color: "#c9b896" }}">Crew</div>
+                          <div style={{ color: "#c9b896" }} className="text-xs">Crew</div>
                           <div className="text-base font-bold text-[#2d2416]">
                             {ship.crew - ship.crewLoss}
                           </div>
@@ -2847,7 +2847,7 @@ export default function BTQCompanion() {
                           {Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
                         </strong>
                       </div>
-                      <div className="flex justify-between style={{ color: "#c9b896" }} mt-1">
+                      <div style={{ color: "#c9b896" }} className="flex justify-between mt-1">
                         <span>Unassigned:</span>
                         <span className={(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0) < 0 ? 'text-red-400 font-bold' : ''}>
                           {(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
