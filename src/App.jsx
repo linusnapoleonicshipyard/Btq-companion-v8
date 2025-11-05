@@ -1880,7 +1880,6 @@ export default function BTQCompanion() {
             >
               💾 Export
             </button>
-            </button>
             <label className="navy-button px-3 py-1 rounded text-xs cursor-pointer min-h-[44px] flex items-center gap-1">
               📂 Import
               <input
@@ -2008,7 +2007,7 @@ export default function BTQCompanion() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs style={{ color: "#c9b896" }}">Broadside Guns</label>
+                    <label className="text-xs" style={{ color: "#c9b896" }}>Broadside Guns</label>
                     <button onClick={addGunGroup} className="px-2 py-0.5 bg-[#2a4a6f] rounded text-xs flex items-center gap-1">
                       <Plus className="w-3 h-3" /> Add
                     </button>
@@ -2088,17 +2087,17 @@ export default function BTQCompanion() {
 
                 {shipForm.guns.length > 0 && (
                   <div className="p-2 bg-[#d4c4a8]/50 rounded border border-[#1a1410]">
-                    <div className="text-xs style={{ color: "#c9b896" }} mb-1">📊 Stats Preview:</div>
+                    <div className="text-xs mb-1" style={{ color: "#c9b896" }}>📊 Stats Preview:</div>
                     {(() => {
                       const stats = calculateDerivedStats(shipForm);
                       return (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-1 text-xs">
-                          <div><span className="style={{ color: "#c9b896" }}">HVN:</span> <span className="text-green-400">{stats.hvn}</span></div>
-                          <div><span className="style={{ color: "#c9b896" }}">SVN:</span> <span className="text-green-400">{stats.svn}</span></div>
-                          <div><span className="style={{ color: "#c9b896" }}">GDN:</span> <span className="text-green-400">{stats.gdn}</span></div>
-                          <div><span className="style={{ color: "#c9b896" }}">LGBWN:</span> <span className="text-[#c5a572]">{stats.lgbwn}</span></div>
-                          <div><span className="style={{ color: "#c9b896" }}">CBWN:</span> <span className="text-[#c5a572]">{stats.cbwn}</span></div>
-                          <div><span className="style={{ color: "#c9b896" }}">PVN:</span> <span className="text-[#c5a572]">{stats.pvn}</span></div>
+                          <div><span style={{ color: "#c9b896" }}>HVN:</span> <span className="text-green-400">{stats.hvn}</span></div>
+                          <div><span style={{ color: "#c9b896" }}>SVN:</span> <span className="text-green-400">{stats.svn}</span></div>
+                          <div><span style={{ color: "#c9b896" }}>GDN:</span> <span className="text-green-400">{stats.gdn}</span></div>
+                          <div><span style={{ color: "#c9b896" }}>LGBWN:</span> <span className="text-[#c5a572]">{stats.lgbwn}</span></div>
+                          <div><span style={{ color: "#c9b896" }}>CBWN:</span> <span className="text-[#c5a572]">{stats.cbwn}</span></div>
+                          <div><span style={{ color: "#c9b896" }}>PVN:</span> <span className="text-[#c5a572]">{stats.pvn}</span></div>
                         </div>
                       );
                     })()}
@@ -2134,13 +2133,13 @@ export default function BTQCompanion() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2 text-xs mb-2">
                     <div>
-                      <span className="style={{ color: "#c9b896" }}">Hull:</span> {Math.floor((ship.hullDamage / ship.hvn) * 100)}%
+                      <span style={{ color: "#c9b896" }}>Hull:</span> {Math.floor((ship.hullDamage / ship.hvn) * 100)}%
                     </div>
                     <div>
-                      <span className="style={{ color: "#c9b896" }}">Sails:</span> {ship.sailsLost.length}/{ship.sails}
+                      <span style={{ color: "#c9b896" }}>Sails:</span> {ship.sailsLost.length}/{ship.sails}
                     </div>
                     <div>
-                      <span className="style={{ color: "#c9b896" }}">Crew:</span> {ship.crew - ship.crewLoss}
+                      <span style={{ color: "#c9b896" }}>Crew:</span> {ship.crew - ship.crewLoss}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-1 text-xs">
