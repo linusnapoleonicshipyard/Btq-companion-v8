@@ -2149,7 +2149,7 @@ export default function BTQCompanion() {
                       const total = guns.reduce((sum, g) => sum + g.count, 0);
                       return (
                         <div key={arc} className="p-1 bg-[#d4c4a8]/50 rounded">
-                          <div className="style={{ color: "#c9b896" }} font-bold">{arc}:</div>
+                          <div style={{ color: "#c9b896" }} className="font-bold">{arc}:</div>
                           {guns.map((g, i) => g.count > 0 && (
                             <div key={i}>{g.count}× {g.type}</div>
                           ))}
@@ -2172,7 +2172,8 @@ export default function BTQCompanion() {
                         </span>
                         <button
                           onClick={() => attemptCutGrapples(ship.id)}
-                          className="px-2 py-1 style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }} rounded text-xs font-bold"
+                          style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }}
+                          className="px-2 py-1 rounded text-xs font-bold"
                         >
                           ✂️ Cut Grapples
                         </button>
@@ -2227,7 +2228,7 @@ export default function BTQCompanion() {
             </div>
             
             {ships.length === 0 ? (
-              <div className="style={{ color: "#c9b896" }} text-center py-8 text-xs sm:text-sm">
+              <div style={{ color: "#c9b896" }} className="text-center py-8 text-xs sm:text-sm">
                 No ships. Go to Ships tab.
               </div>
             ) : (
@@ -2333,11 +2334,11 @@ export default function BTQCompanion() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2 text-xs mb-2">
                       <div className="p-2 bg-[#4a3f2f] rounded">
-                        <div className="style={{ color: "#c9b896" }} mb-1">Base Speed:</div>
+                        <div style={{ color: "#c9b896" }} className="mb-1">Base Speed:</div>
                         <div className="font-mono text-lg text-green-400">{movement.base}mm</div>
                       </div>
                       <div className="p-2 bg-[#4a3f2f] rounded">
-                        <div className="style={{ color: "#c9b896" }} mb-1">Max After Damage:</div>
+                        <div style={{ color: "#c9b896" }} className="mb-1">Max After Damage:</div>
                         <div className={`font-mono text-lg ${
                           ship.sailsLost.length > 0 ? 'text-yellow-400' : 'text-[#c5a572]'
                         }`}>{movement.maxSpeed}mm</div>
@@ -2350,7 +2351,7 @@ export default function BTQCompanion() {
                     </div>
 
                     <div className="p-3 bg-[#d4c4a8] rounded border border-cyan-600">
-                      <div className="style={{ color: "#c9b896" }} text-xs mb-1">Allowed Range This Turn:</div>
+                      <div style={{ color: "#c9b896" }} className="text-xs mb-1">Allowed Range This Turn:</div>
                       <div className="font-mono text-xl text-[#c5a572] font-bold">{movement.allowedRange}</div>
                       {ship.sailsLost.length > 0 && (
                         <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-xs">
@@ -2504,7 +2505,11 @@ export default function BTQCompanion() {
                 <label className="text-xs">Use Initial Broadside (+50)</label>
               </div>
 
-              <button onClick={executeGunnery} className="w-full px-3 py-2 style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }} rounded font-bold text-xs sm:text-sm min-h-[44px]">
+              <button 
+                onClick={executeGunnery} 
+                style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }}
+                className="w-full px-3 py-2 rounded font-bold text-xs sm:text-sm min-h-[44px]"
+              >
                 🔥 FIRE!
               </button>
 
@@ -2564,7 +2569,7 @@ export default function BTQCompanion() {
           <div className="wood-border p-4 sm:p-6 rounded-lg">
             <h2 className="text-lg font-bold mb-3 gold-accent heading-font">Damage Status</h2>
             {ships.length === 0 ? (
-              <div className="style={{ color: "#c9b896" }} text-center py-8 text-xs">No ships</div>
+              <div style={{ color: "#c9b896" }} className="text-center py-8 text-xs">No ships</div>
             ) : (
               <div className="space-y-2">
                 {ships.map(ship => {
@@ -2690,7 +2695,7 @@ export default function BTQCompanion() {
             <h2 className="text-xs sm:text-sm font-bold mb-3">⚔️ Boarding Actions</h2>
             
             {ships.filter(s => s.grappled && s.status === 'Active').length === 0 ? (
-              <div className="style={{ color: "#c9b896" }} text-center py-8 text-xs">
+              <div style={{ color: "#c9b896" }} className="text-center py-8 text-xs">
                 No ships grappled. Use Ships tab to grapple ships together.
               </div>
             ) : (
@@ -2798,7 +2803,7 @@ export default function BTQCompanion() {
                           className="w-20 bg-[#2a1f0f] rounded px-2 py-1 text-xs"
                         />
                       </label>
-                      <div className="style={{ color: "#c9b896" }} text-xs pl-2">
+                      <div style={{ color: "#c9b896" }} className="text-xs pl-2">
                         Required: {calculateRequiredGunCrew(ship)}
                       </div>
                     </div>
@@ -2814,7 +2819,7 @@ export default function BTQCompanion() {
                           className="w-20 bg-[#2a1f0f] rounded px-2 py-1 text-xs"
                         />
                       </label>
-                      <div className="style={{ color: "#c9b896" }} text-xs pl-2">
+                      <div style={{ color: "#c9b896" }} className="text-xs pl-2">
                         Required: {calculateRequiredSailingCrew(ship)}
                       </div>
                     </div>
@@ -2830,7 +2835,7 @@ export default function BTQCompanion() {
                           className="w-20 bg-[#2a1f0f] rounded px-2 py-1 text-xs"
                         />
                       </label>
-                      <div className="style={{ color: "#c9b896" }} text-xs pl-2">
+                      <div style={{ color: "#c9b896" }} className="text-xs pl-2">
                         10% per fire recommended
                       </div>
                     </div>
@@ -2890,7 +2895,8 @@ export default function BTQCompanion() {
               <div className="flex gap-2">
                 <button
                   onClick={performReset}
-                  className="flex-1 px-4 py-2 style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }} rounded font-bold text-xs sm:text-sm min-h-[44px]"
+                  style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }}
+                  className="flex-1 px-4 py-2 rounded font-bold text-xs sm:text-sm min-h-[44px]"
                 >
                   Yes, Reset
                 </button>
