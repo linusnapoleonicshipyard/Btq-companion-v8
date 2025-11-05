@@ -109,7 +109,8 @@ const MAST_STRUCTURES = {
 const getMastStructure = (shipClass) => {
   if (shipClass.includes('1st') || shipClass.includes('2nd') || 
       shipClass.includes('3rd') || shipClass.includes('4th') || 
-      shipClass.includes('5th') || shipClass.includes('6th')) {
+      shipClass.includes('5th') || shipClass.includes('6th') ||
+      shipClass.includes('Large Frigates')) {
     return 'three-masted';
   }
   if (shipClass.includes('Sloops') || shipClass.includes('Brigs') || 
@@ -223,6 +224,14 @@ const MOVEMENT_TABLES = {
     "Moderate breeze": { QR: 363, Ru: 290, RN: 272, B: 181, D: 73 },
     "Fresh breeze": { QR: 499, Ru: 395, RN: 374, B: 250, D: 105 },
     "Gale": { QR: 250, Ru: 200, RN: 189, B: 127, D: 50 }
+  },
+  "Large Frigates": {
+    "Slight breeze": { QR: 186, Ru: 147, RN: 140, B: 94, D: 39 },
+    "Light breeze": { QR: 236, Ru: 187, RN: 178, B: 118, D: 49 },
+    "Gentle breeze": { QR: 412, Ru: 326, RN: 308, B: 205, D: 85 },
+    "Moderate breeze": { QR: 537, Ru: 425, RN: 406, B: 272, D: 112 },
+    "Fresh breeze": { QR: 634, Ru: 502, RN: 478, B: 319, D: 132 },
+    "Gale": { QR: 280, Ru: 221, RN: 210, B: 140, D: 58 }
   },
   "5th & 6th rates": {
     "Slight breeze": { QR: 225, Ru: 178, RN: 172, B: 114, D: 47 },
@@ -386,6 +395,7 @@ export default function BTQCompanion() {
   
   // V8 STATE
   const [useEnhancedFire, setUseEnhancedFire] = useState(true);
+  const [usePvnSurrender, setUsePvnSurrender] = useState(false);
 
   const addLog = (message, type = 'info') => {
     setLog(prev => [...prev, { id: Date.now() + Math.random(), message, type, turn }]);
@@ -400,7 +410,18 @@ export default function BTQCompanion() {
     const totalPoundage = form.guns.reduce((sum, g) => sum + (g.poundage * g.count), 0);
     const lgbwn = Math.round(totalPoundage / 4);
     const cbwn = Math.round(hvn / 40);
-    const pvn = Math.round(hvn / 400);
+    
+    // Calculate broadside (carronades count as half for PVN)
+    const broadside = form.guns.reduce((sum, g) => {
+      const poundage = g.type.includes('Carronade') ? g.poundage / 2 : g.poundage;
+      return sum + (poundage * g.count);
+    }, 0) + 
+    (form.bowChasers.type.includes('Carronade') ? form.bowChasers.poundage / 2 : form.bowChasers.poundage) * form.bowChasers.count +
+    (form.sternChasers.type.includes('Carronade') ? form.sternChasers.poundage / 2 : form.sternChasers.poundage) * form.sternChasers.count;
+    
+    const nationalityMod = NATIONALITY_MODIFIERS[form.nationality] || 1.0;
+    const pvn = Math.round(broadside * nationalityMod * form.tonnage);
+    
     return { hvn, svn, gdn, lgbwn, cbwn, pvn };
   };
 
@@ -1686,72 +1707,241 @@ export default function BTQCompanion() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-2">
+    <div className="min-h-screen p-2 sm:p-4" style={{
+      background: 'linear-gradient(to bottom, #2c1810 0%, #1a0f08 100%)',
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+        
+        * {
+          font-family: 'Crimson Text', serif;
+        }
+        
+        h1, h2, h3, .heading-font {
+          font-family: 'Cinzel', serif;
+        }
+        
+        .parchment-texture {
+          background-image: 
+            linear-gradient(to bottom, rgba(242,235,211,0.95), rgba(230,220,190,0.95)),
+            url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><filter id="noise"><feTurbulence baseFrequency="0.9" numOctaves="4" seed="0"/></filter><rect width="200" height="200" filter="url(%23noise)" opacity="0.15"/></svg>');
+          background-blend-mode: overlay;
+        }
+        
+        .wood-border {
+          background: linear-gradient(135deg, #3d2817 0%, #2a1810 50%, #3d2817 100%);
+          color: #8a7a68;
+          box-shadow: 
+            inset 0 2px 4px rgba(0,0,0,0.5),
+            inset 0 -2px 4px rgba(255,255,255,0.1),
+            0 4px 12px rgba(0,0,0,0.6);
+        }
+        
+        /* Override cream text for form elements - they use their own colors */
+        .wood-border .parchment-input,
+        .wood-border .parchment-input option {
+          color: #5a4635 !important;
+        }
+        
+        .navy-button {
+          background: linear-gradient(135deg, #1a4d6d 0%, #2c5f7f 100%);
+          border: 2px solid #8b6f47;
+          color: #f0e7d5;
+          font-family: 'Cinzel', serif;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+          box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+          transition: all 0.2s ease;
+        }
+        
+        .navy-button:hover:not(:disabled) {
+          background: linear-gradient(135deg, #2c5f7f 0%, #3d7a9f 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 5px 12px rgba(0,0,0,0.5);
+        }
+        
+        .navy-button:active {
+          transform: translateY(0);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+        
+        .parchment-input {
+          background: rgba(250, 245, 230, 0.8);
+          border: 2px solid #8b6f47;
+          color: #5a4635 !important;
+          font-family: 'Crimson Text', serif;
+        }
+        
+        .parchment-input::placeholder {
+          color: #5a4635;
+          opacity: 0.7;
+        }
+        
+        .parchment-input option {
+          color: #5a4635;
+          background: #faf5e6;
+        }
+        
+        .parchment-input:focus {
+          outline: none;
+          border-color: #d4af37;
+          background: rgba(255, 250, 235, 0.95);
+          color: #5a4635 !important;
+        }
+        
+        /* Ensure all form inputs default to dark text */
+        .wood-border input:not([class*="text-"]),
+        .wood-border select:not([class*="text-"]),
+        .wood-border textarea:not([class*="text-"]) {
+          color: #1a1410;
+        }
+        
+        .ship-card {
+          background: linear-gradient(to bottom right, rgba(242,235,211,0.98), rgba(230,220,190,0.98));
+          border: 3px solid #8b6f47;
+          border-radius: 6px;
+          box-shadow: 
+            0 4px 12px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.4);
+        }
+        
+        .stat-label {
+          font-family: 'Cinzel', serif;
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+          color: #e8dfc8;
+        }
+        
+        .stat-value {
+          font-family: 'Crimson Text', serif;
+          font-size: 16px;
+          font-weight: 600;
+          color: #1a1410;
+        }
+        
+        .gold-accent {
+          color: #d4af37;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .ink-text {
+          color: #3d2817;
+        }
+        
+        .wood-border .stat-label {
+          color: #e8dfc8;
+        }
+        
+        /* Aged parchment text colors for dark backgrounds */
+        .parchment-text {
+          color: #e8dfc8;
+        }
+        
+        .faded-text {
+          color: #c9b896;
+        }
+        
+        .decorative-line {
+          height: 2px;
+          background: linear-gradient(90deg, transparent 0%, #8b6f47 20%, #d4af37 50%, #8b6f47 80%, transparent 100%);
+        }
+        
+        .tab-button {
+          font-family: 'Cinzel', serif;
+          font-weight: 600;
+          font-size: 11px;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          padding: 8px 16px;
+          border: 2px solid #8b6f47;
+          background: rgba(58, 47, 31, 0.6);
+          color: #c9b896;
+          transition: all 0.2s ease;
+        }
+        
+        .tab-button:hover {
+          background: rgba(76, 60, 42, 0.8);
+          color: #f0e7d5;
+        }
+        
+        .tab-button.active {
+          background: linear-gradient(135deg, #1a4d6d 0%, #2c5f7f 100%);
+          color: #f0e7d5;
+          border-color: #d4af37;
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto">
-        <div className="bg-slate-800 rounded-lg p-3 mb-2 border border-slate-700">
-          <div className="flex items-center justify-between mb-2">
+        <div className="wood-border p-4 sm:p-6 mb-4 rounded-lg">
+          <div className="text-center mb-4">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 gold-accent heading-font" style={{ letterSpacing: '2px' }}>
+              BEAT TO QUARTERS
+            </h1>
+            <div className="decorative-line my-2"></div>
+            <p className="text-sm sm:text-base" style={{ color: '#c9b896', fontStyle: 'italic' }}>
+              A Naval Wargame Companion for the Age of Sail
+            </p>
+          </div>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Ship className="w-5 h-5 text-blue-400" />
-              <h1 className="text-base font-bold">BTQ v7 Complete</h1>
-              <div className="px-2 py-0.5 bg-slate-700 rounded text-xs">T{turn}</div>
+              <Ship className="w-5 h-5" style={{ color: '#d4af37' }} />
+              <div className="parchment-texture px-3 py-1 rounded text-xs ink-text font-semibold">Turn {turn}</div>
               {ships.length > 0 && (
-                <div className="px-2 py-0.5 bg-blue-900 rounded text-xs">{ships.length}</div>
+                <div className="parchment-texture px-3 py-1 rounded text-xs ink-text font-semibold">{ships.length} Ships</div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Wind className="w-4 h-4 text-cyan-400" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Wind className="w-4 h-4" style={{ color: '#d4af37' }} />
               <select
                 value={wind.strength}
                 onChange={(e) => setWind(prev => ({ ...prev, strength: e.target.value }))}
-                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                className="parchment-input rounded px-2 py-1 text-xs text-[#5a4635]"
+                style={{ color: '#5a4635' }}
               >
                 {WIND_STRENGTHS.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
               <select
                 value={wind.direction}
                 onChange={(e) => setWind(prev => ({ ...prev, direction: e.target.value }))}
-                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                className="parchment-input rounded px-2 py-1 text-xs text-[#5a4635]"
+                style={{ color: '#5a4635' }}
               >
                 {COMPASS_POINTS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-              <button onClick={advanceTurn} className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-bold">
-                Next
+              <button onClick={advanceTurn} className="navy-button px-3 py-1 rounded text-xs min-h-[44px]">
+                ⚓ Next Turn
               </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 justify-end flex-wrap mt-3">
             <button 
               onClick={startNewGame}
-              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+              className="navy-button px-3 py-1 rounded text-xs min-h-[44px]"
             >
               🎮 New Game
             </button>
             <button 
               onClick={restartTurn}
               disabled={!previousTurnState}
-              className={`px-2 py-1 rounded text-xs ${
-                previousTurnState 
-                  ? 'bg-yellow-600 hover:bg-yellow-700' 
-                  : 'bg-slate-600 cursor-not-allowed opacity-50'
+              className={`navy-button px-3 py-1 rounded text-xs min-h-[44px] ${
+                !previousTurnState && 'opacity-50 cursor-not-allowed'
               }`}
             >
-              ↩️ Restart Turn
+              ↩️ Restart
             </button>
             <button 
               onClick={exportGame}
               disabled={ships.length === 0}
-              className={`px-2 py-1 rounded text-xs ${
-                ships.length > 0
-                  ? 'bg-purple-600 hover:bg-purple-700'
-                  : 'bg-slate-600 cursor-not-allowed opacity-50'
+              className={`navy-button px-3 py-1 rounded text-xs min-h-[44px] ${
+                ships.length === 0 && 'opacity-50 cursor-not-allowed'
               }`}
             >
               💾 Export
             </button>
-            <label className={`px-2 py-1 rounded text-xs cursor-pointer ${
-              'bg-orange-600 hover:bg-orange-700'
-            }`}>
+            <label className="navy-button px-3 py-1 rounded text-xs cursor-pointer min-h-[44px] flex items-center gap-1">
               📂 Import
               <input
                 type="file"
@@ -1761,112 +1951,115 @@ export default function BTQCompanion() {
               />
             </label>
           </div>
+          
+          <div className="parchment-texture rounded px-3 py-2 mt-3 flex items-center gap-2 sm:gap-4 text-xs flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useEnhancedFire}
+                onChange={(e) => setUseEnhancedFire(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="font-medium ink-text">🔥 Enhanced Fire (v8 - L.4)</span>
+            </label>
+            <span className="text-xs" style={{ color: '#5a4635' }}>Fire spreading, intensity levels, magazine explosions</span>
+          </div>
         </div>
 
-        <div className="bg-slate-700 rounded px-3 py-2 mb-2 flex items-center gap-4 text-xs">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useEnhancedFire}
-              onChange={(e) => setUseEnhancedFire(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <span className="font-medium">🔥 Enhanced Fire (v8 - L.4)</span>
-          </label>
-          <span className="text-slate-400">Fire spreading, intensity levels, magazine explosions</span>
-        </div>
-
-        <div className="flex gap-1 mb-2 overflow-x-auto">
-          {['ships', 'movement', 'gunnery', 'boarding', 'damage', 'crew', 'log'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
-                activeTab === tab ? 'bg-blue-600' : 'bg-slate-700'
-              }`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
+        <div className="parchment-texture rounded-lg p-3 sm:p-4">
+          <div className="flex gap-1 mb-4 overflow-x-auto border-b-2 border-[#8b6f47] pb-2">
+            {['ships', 'movement', 'gunnery', 'boarding', 'damage', 'crew', 'log'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`tab-button rounded-t ${activeTab === tab ? 'active' : ''}`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
 
         {activeTab === 'ships' && (
-          <div className="space-y-2">
-            <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-              <h2 className="text-sm font-bold mb-2">Create Ship</h2>
+          <div className="space-y-3">
+            <div className="wood-border p-4 sm:p-6 rounded-lg">
+              <h2 className="text-lg sm:text-xl font-bold mb-3 gold-accent heading-font">Create New Ship</h2>
+              <div className="decorative-line mb-4"></div>
               
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Name</label>
+                  <label className="stat-label block mb-1 parchment-text">Ship Name</label>
                   <input
                     value={shipForm.name}
                     onChange={(e) => setShipForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full parchment-input rounded px-3 py-2 text-sm text-[#5a4635]"
+                    style={{ color: '#5a4635' }}
+                    placeholder="HMS Victory"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Class</label>
+                    <label className="stat-label block mb-1 parchment-text">Ship Class</label>
                     <select
                       value={shipForm.class}
                       onChange={(e) => setShipForm(prev => ({ ...prev, class: e.target.value }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                      className="w-full parchment-input rounded px-3 py-2 text-sm text-[#5a4635]"
+                      style={{ color: '#5a4635' }}
                     >
                       {Object.keys(MOVEMENT_TABLES).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Tonnage</label>
+                    <label className="stat-label block mb-1 parchment-text">Tonnage</label>
                     <input
                       type="number"
                       value={shipForm.tonnage}
                       onChange={(e) => setShipForm(prev => ({ ...prev, tonnage: parseInt(e.target.value) }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                      className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Sails</label>
+                    <label className="stat-label block mb-1 parchment-text">Sails</label>
                     <select
                       value={shipForm.sails}
                       onChange={(e) => setShipForm(prev => ({ ...prev, sails: parseInt(e.target.value) }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                      className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                     >
                       {[10,9,8,7,6,5,4,3,2,1].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Crew</label>
+                    <label className="stat-label block mb-1 parchment-text">Crew</label>
                     <input
                       type="number"
                       value={shipForm.crew}
                       onChange={(e) => setShipForm(prev => ({ ...prev, crew: parseInt(e.target.value) }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                      className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Quality</label>
+                    <label className="stat-label block mb-1 parchment-text">Quality</label>
                     <select
                       value={shipForm.crewQuality}
                       onChange={(e) => setShipForm(prev => ({ ...prev, crewQuality: e.target.value }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                      className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                     >
                       <option>Experienced</option>
                       <option>Inexperienced</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Nationality</label>
+                    <label className="stat-label block mb-1 parchment-text">Nationality</label>
                     <select
                       value={shipForm.nationality}
                       onChange={(e) => setShipForm(prev => ({ ...prev, nationality: e.target.value }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                      className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                     >
                       {Object.entries(NATIONALITY_MODIFIERS).map(([nat, mod]) => (
                         <option key={nat} value={nat}>{nat.slice(0, 30)} ({mod})</option>
@@ -1877,8 +2070,8 @@ export default function BTQCompanion() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-slate-400">Broadside Guns</label>
-                    <button onClick={addGunGroup} className="px-2 py-0.5 bg-blue-600 rounded text-xs flex items-center gap-1">
+                    <label className="text-xs" style={{ color: "#c9b896" }}>Broadside Guns</label>
+                    <button onClick={addGunGroup} className="px-2 py-0.5 bg-[#2a4a6f] rounded text-xs flex items-center gap-1">
                       <Plus className="w-3 h-3" /> Add
                     </button>
                   </div>
@@ -1887,7 +2080,7 @@ export default function BTQCompanion() {
                       <select
                         value={gun.type}
                         onChange={(e) => updateGunGroup(idx, 'type', e.target.value)}
-                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                        className="flex-1 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       >
                         {GUN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1895,18 +2088,18 @@ export default function BTQCompanion() {
                         type="number"
                         value={gun.count}
                         onChange={(e) => updateGunGroup(idx, 'count', parseInt(e.target.value))}
-                        className="w-12 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                        className="w-12 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       />
-                      <button onClick={() => removeGunGroup(idx)} className="px-1 bg-red-600 rounded">
+                      <button onClick={() => removeGunGroup(idx)} className="px-1 bg-[#a52a2a] rounded">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Bow Chasers</label>
+                    <label className="stat-label block mb-1 parchment-text">Bow Chasers</label>
                     <div className="flex gap-1">
                       <select
                         value={shipForm.bowChasers.type}
@@ -1914,7 +2107,7 @@ export default function BTQCompanion() {
                           ...prev, 
                           bowChasers: { ...prev.bowChasers, type: e.target.value, poundage: parseInt(e.target.value.match(/\d+/)[0]) }
                         }))}
-                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                        className="flex-1 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       >
                         {GUN_TYPES.slice(0, 14).map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1925,12 +2118,12 @@ export default function BTQCompanion() {
                           ...prev, 
                           bowChasers: { ...prev.bowChasers, count: parseInt(e.target.value) }
                         }))}
-                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                        className="w-10 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Stern Chasers</label>
+                    <label className="stat-label block mb-1 parchment-text">Stern Chasers</label>
                     <div className="flex gap-1">
                       <select
                         value={shipForm.sternChasers.type}
@@ -1938,7 +2131,7 @@ export default function BTQCompanion() {
                           ...prev, 
                           sternChasers: { ...prev.sternChasers, type: e.target.value, poundage: parseInt(e.target.value.match(/\d+/)[0]) }
                         }))}
-                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                        className="flex-1 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       >
                         {GUN_TYPES.slice(0, 14).map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1949,25 +2142,25 @@ export default function BTQCompanion() {
                           ...prev, 
                           sternChasers: { ...prev.sternChasers, count: parseInt(e.target.value) }
                         }))}
-                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-1 text-xs"
+                        className="w-10 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       />
                     </div>
                   </div>
                 </div>
 
                 {shipForm.guns.length > 0 && (
-                  <div className="p-2 bg-slate-900/50 rounded border border-slate-600">
-                    <div className="text-xs text-slate-400 mb-1">📊 Stats Preview:</div>
+                  <div className="p-2 bg-[#d4c4a8]/50 rounded border border-[#1a1410] text-[#2a1810]">
+                    <div className="text-xs mb-1 font-semibold">📊 Stats Preview:</div>
                     {(() => {
                       const stats = calculateDerivedStats(shipForm);
                       return (
-                        <div className="grid grid-cols-3 gap-1 text-xs">
-                          <div><span className="text-slate-400">HVN:</span> <span className="text-green-400">{stats.hvn}</span></div>
-                          <div><span className="text-slate-400">SVN:</span> <span className="text-green-400">{stats.svn}</span></div>
-                          <div><span className="text-slate-400">GDN:</span> <span className="text-green-400">{stats.gdn}</span></div>
-                          <div><span className="text-slate-400">LGBWN:</span> <span className="text-cyan-400">{stats.lgbwn}</span></div>
-                          <div><span className="text-slate-400">CBWN:</span> <span className="text-cyan-400">{stats.cbwn}</span></div>
-                          <div><span className="text-slate-400">PVN:</span> <span className="text-blue-400">{stats.pvn}</span></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-1 text-xs">
+                          <div><span className="font-semibold">HVN:</span> <span className="text-green-600">{stats.hvn}</span></div>
+                          <div><span className="font-semibold">SVN:</span> <span className="text-green-600">{stats.svn}</span></div>
+                          <div><span className="font-semibold">GDN:</span> <span className="text-green-600">{stats.gdn}</span></div>
+                          <div><span className="font-semibold">LGBWN:</span> <span className="font-bold">{stats.lgbwn}</span></div>
+                          <div><span className="font-semibold">CBWN:</span> <span className="font-bold">{stats.cbwn}</span></div>
+                          <div><span className="font-semibold">PVN:</span> <span className="font-bold">{stats.pvn}</span></div>
                         </div>
                       );
                     })()}
@@ -1975,7 +2168,7 @@ export default function BTQCompanion() {
                 )}
               </div>
 
-              <button onClick={createShip} className="mt-2 w-full px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded font-bold text-xs">
+              <button onClick={createShip} className="mt-2 w-full px-3 py-1 bg-[#2a4a6f] hover:bg-[#1a3a5f] rounded font-bold text-xs min-h-[44px]">
                 ⚓ Create Ship
               </button>
               {shipAddedMessage && (
@@ -1985,9 +2178,9 @@ export default function BTQCompanion() {
 
             <div className="space-y-2">
               {ships.map(ship => (
-                <div key={ship.id} className="bg-slate-800 rounded-lg p-2 border border-slate-700">
+                <div key={ship.id} className="bg-[#e8dfc8] text-[#5a4635] rounded border-4 border-[#8b6f47] shadow-2xl p-3 relative" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,175,55,0.3)' }}>
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-sm">{ship.name}</h3>
+                    <h3 className="font-bold text-sm sm:text-base" style={{ color: '#d4af37' }}>{ship.name}</h3>
                     <div className="flex gap-2 items-center">
                       {ship.sp === 0 && (
                         <span className="px-2 py-0.5 rounded text-xs font-bold bg-white text-black animate-pulse">
@@ -2001,27 +2194,27 @@ export default function BTQCompanion() {
                       </span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2 text-xs mb-2">
                     <div>
-                      <span className="text-slate-400">Hull:</span> {Math.floor((ship.hullDamage / ship.hvn) * 100)}%
+                      <span style={{ color: "#5a4635" }} className="font-semibold">Hull:</span> <span className="font-bold">{Math.floor((ship.hullDamage / ship.hvn) * 100)}%</span>
                     </div>
                     <div>
-                      <span className="text-slate-400">Sails:</span> {ship.sailsLost.length}/{ship.sails}
+                      <span style={{ color: "#5a4635" }} className="font-semibold">Sails:</span> <span className="font-bold">{ship.sailsLost.length}/{ship.sails}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400">Crew:</span> {ship.crew - ship.crewLoss}
+                      <span style={{ color: "#5a4635" }} className="font-semibold">Crew:</span> <span className="font-bold">{ship.crew - ship.crewLoss}</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-1 text-xs">
                     {['Port', 'Starboard', 'Bow', 'Stern'].map(arc => {
                       const guns = ship.arcs[arc];
                       if (!guns || guns.length === 0) return null;
                       const total = guns.reduce((sum, g) => sum + g.count, 0);
                       return (
-                        <div key={arc} className="p-1 bg-slate-900/50 rounded">
-                          <div className="text-slate-400 font-bold">{arc}:</div>
+                        <div key={arc} className="p-1 bg-[#d4c4a8]/50 rounded">
+                          <div style={{ color: "#2a1810" }} className="font-bold">{arc}:</div>
                           {guns.map((g, i) => g.count > 0 && (
-                            <div key={i}>{g.count}× {g.type}</div>
+                            <div key={i} style={{ color: "#1a1410" }}>{g.count}× {g.type}</div>
                           ))}
                         </div>
                       );
@@ -2034,7 +2227,7 @@ export default function BTQCompanion() {
                   )}
                   
                   {/* Grappling Controls */}
-                  <div className="mt-2 pt-2 border-t border-slate-600">
+                  <div className="mt-2 pt-2 border-t border-[#1a1410]">
                     {ship.grappled ? (
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-green-400">
@@ -2042,7 +2235,8 @@ export default function BTQCompanion() {
                         </span>
                         <button
                           onClick={() => attemptCutGrapples(ship.id)}
-                          className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-bold"
+                          style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }}
+                          className="px-2 py-1 rounded text-xs font-bold"
                         >
                           ✂️ Cut Grapples
                         </button>
@@ -2051,7 +2245,7 @@ export default function BTQCompanion() {
                       <div className="flex items-center gap-2">
                         <select
                           id={`grapple-target-${ship.id}`}
-                          className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                          className="flex-1 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                           defaultValue=""
                         >
                           <option value="" disabled>Select ship to grapple...</option>
@@ -2068,7 +2262,7 @@ export default function BTQCompanion() {
                               select.value = '';
                             }
                           }}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-bold whitespace-nowrap"
+                          className="px-3 py-1 bg-[#2a4a6f] hover:bg-[#1a3a5f] rounded text-xs font-bold whitespace-nowrap"
                         >
                           ⚓ Grapple
                         </button>
@@ -2082,9 +2276,9 @@ export default function BTQCompanion() {
         )}
 
         {activeTab === 'movement' && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold">Movement Calculator</h2>
+              <h2 className="text-xs sm:text-sm font-bold gold-accent heading-font">Movement Calculator</h2>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -2092,12 +2286,12 @@ export default function BTQCompanion() {
                   onChange={(e) => setUsePercentTurnPenalty(e.target.checked)}
                   className="w-4 h-4"
                 />
-                <label className="text-xs">5% per turn (optional)</label>
+                <label className="text-xs parchment-text">5% per turn (optional)</label>
               </div>
             </div>
             
             {ships.length === 0 ? (
-              <div className="text-slate-400 text-center py-8 text-sm">
+              <div style={{ color: "#c9b896" }} className="text-center py-8 text-xs sm:text-sm">
                 No ships. Go to Ships tab.
               </div>
             ) : (
@@ -2108,8 +2302,8 @@ export default function BTQCompanion() {
                 const turnCap = getTurnCap(ship.class);
 
                 return (
-                  <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3 border border-slate-600">
-                    <h3 className="font-bold mb-2 text-sm">{ship.name}</h3>
+                  <div key={ship.id} className="bg-[#3a2f1f] text-[#d9d0b8] rounded p-2 sm:p-3 mb-3 border-2 border-[#2a1f0f] shadow-inner">
+                    <h3 className="font-bold mb-2 text-xs sm:text-sm">{ship.name}</h3>
                     
                     {/* BTQ 4.26 & 6.52: Tacking Restrictions */}
                     {(ship.mastSectionsLost.length > 0 || 
@@ -2136,9 +2330,9 @@ export default function BTQCompanion() {
                       </div>
                     )}
                     
-                    <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2 mb-2">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Point of Sail</label>
+                        <label className="stat-label block mb-1 parchment-text">Point of Sail</label>
                         <select
                           value={ship.pos}
                           onChange={(e) => {
@@ -2146,7 +2340,7 @@ export default function BTQCompanion() {
                               s.id === ship.id ? { ...s, pos: e.target.value } : s
                             ));
                           }}
-                          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs"
+                          className="w-full bg-[#4a3f2f] border border-[#1a1410] rounded px-2 py-1 text-xs text-[#e8dfc8]"
                         >
                           <option value="QR">QR</option>
                           <option value="Ru">Ru</option>
@@ -2157,7 +2351,7 @@ export default function BTQCompanion() {
                       </div>
 
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">
+                        <label className="stat-label block mb-1 parchment-text">
                           Turn Pts (max {turnCap}
                           {ship.rudder && ' -50% rudder'}
                           {ship.wheel && ' -25% wheel'})
@@ -2173,7 +2367,7 @@ export default function BTQCompanion() {
                               s.id === ship.id ? { ...s, turnPoints: val } : s
                             ));
                           }}
-                          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs"
+                          className="w-full bg-[#4a3f2f] border border-[#1a1410] rounded px-2 py-1 text-xs text-[#e8dfc8]"
                         />
                         {(ship.rudder || ship.wheel) && (
                           <div className="mt-1 text-xs text-red-400">
@@ -2185,7 +2379,7 @@ export default function BTQCompanion() {
                       </div>
 
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Last Move (mm)</label>
+                        <label className="stat-label block mb-1 parchment-text">Last Move (mm)</label>
                         <input
                           type="number"
                           value={ship.lastMove}
@@ -2196,20 +2390,20 @@ export default function BTQCompanion() {
                               s.id === ship.id ? { ...s, lastMove: val } : s
                             ));
                           }}
-                          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs"
+                          className="w-full bg-[#4a3f2f] border border-[#1a1410] rounded px-2 py-1 text-xs text-[#e8dfc8]"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                      <div className="p-2 bg-slate-800 rounded">
-                        <div className="text-slate-400 mb-1">Base Speed:</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2 text-xs mb-2">
+                      <div className="p-2 bg-[#4a3f2f] rounded">
+                        <div style={{ color: "#c9b896" }} className="mb-1">Base Speed:</div>
                         <div className="font-mono text-lg text-green-400">{movement.base}mm</div>
                       </div>
-                      <div className="p-2 bg-slate-800 rounded">
-                        <div className="text-slate-400 mb-1">Max After Damage:</div>
+                      <div className="p-2 bg-[#4a3f2f] rounded">
+                        <div style={{ color: "#c9b896" }} className="mb-1">Max After Damage:</div>
                         <div className={`font-mono text-lg ${
-                          ship.sailsLost.length > 0 ? 'text-yellow-400' : 'text-blue-400'
+                          ship.sailsLost.length > 0 ? 'text-yellow-400' : 'text-[#c5a572]'
                         }`}>{movement.maxSpeed}mm</div>
                         {ship.sailsLost.length > 0 && (
                           <div className="text-xs text-red-400 mt-1">
@@ -2219,9 +2413,9 @@ export default function BTQCompanion() {
                       </div>
                     </div>
 
-                    <div className="p-3 bg-slate-900 rounded border border-cyan-600">
-                      <div className="text-slate-400 text-xs mb-1">Allowed Range This Turn:</div>
-                      <div className="font-mono text-xl text-cyan-400 font-bold">{movement.allowedRange}</div>
+                    <div className="p-3 bg-[#d4c4a8] rounded border border-cyan-600 text-[#2a1810]">
+                      <div className="text-xs mb-1">Allowed Range This Turn:</div>
+                      <div className="font-mono text-xl text-[#c5a572] font-bold">{movement.allowedRange}</div>
                       {ship.sailsLost.length > 0 && (
                         <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-xs">
                           <div className="text-red-300 font-bold">⛵ Sail Damage Impact</div>
@@ -2255,27 +2449,27 @@ export default function BTQCompanion() {
         )}
 
         {activeTab === 'gunnery' && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-            <h2 className="text-sm font-bold mb-2">Gunnery</h2>
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
+            <h2 className="text-lg font-bold mb-3 gold-accent heading-font">Gunnery</h2>
             <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Firing Ship</label>
+                  <label className="stat-label block mb-1 parchment-text">Firing Ship</label>
                   <select
                     value={gunneryForm.firingShipId}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, firingShipId: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option value="">Select...</option>
                     {ships.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Target Ship</label>
+                  <label className="stat-label block mb-1 parchment-text">Target Ship</label>
                   <select
                     value={gunneryForm.targetShipId}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, targetShipId: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option value="">Select...</option>
                     {ships.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -2283,13 +2477,13 @@ export default function BTQCompanion() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Firing Arc</label>
+                  <label className="stat-label block mb-1 parchment-text">Firing Arc</label>
                   <select
                     value={gunneryForm.arc}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, arc: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option>Port</option>
                     <option>Starboard</option>
@@ -2298,11 +2492,11 @@ export default function BTQCompanion() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Target Location</label>
+                  <label className="stat-label block mb-1 parchment-text">Target Location</label>
                   <select
                     value={gunneryForm.targetLocation}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, targetLocation: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option>Port</option>
                     <option>Starboard</option>
@@ -2311,23 +2505,23 @@ export default function BTQCompanion() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Distance</label>
+                  <label className="stat-label block mb-1 parchment-text">Distance</label>
                   <input
                     type="number"
                     value={gunneryForm.distance}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, distance: parseFloat(e.target.value) }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Shot</label>
+                  <label className="stat-label block mb-1 parchment-text">Shot</label>
                   <select
                     value={gunneryForm.shotType}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, shotType: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option>Ball</option>
                     <option>Double</option>
@@ -2337,11 +2531,11 @@ export default function BTQCompanion() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Aim</label>
+                  <label className="stat-label block mb-1 parchment-text">Aim</label>
                   <select
                     value={gunneryForm.aimType}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, aimType: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option>Hull</option>
                     <option>Rigging</option>
@@ -2352,11 +2546,11 @@ export default function BTQCompanion() {
 
               <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Rake</label>
+                  <label className="stat-label block mb-1 parchment-text">Rake</label>
                   <select
                     value={gunneryForm.rakeType}
                     onChange={(e) => setGunneryForm(prev => ({ ...prev, rakeType: e.target.value }))}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs"
+                    className="w-full bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-2 py-1 text-xs text-[#e8dfc8]"
                   >
                     <option>None</option>
                     <option>Bow</option>
@@ -2374,15 +2568,19 @@ export default function BTQCompanion() {
                 <label className="text-xs">Use Initial Broadside (+50)</label>
               </div>
 
-              <button onClick={executeGunnery} className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 rounded font-bold text-sm">
+              <button 
+                onClick={executeGunnery} 
+                style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }}
+                className="w-full px-3 py-2 rounded font-bold text-xs sm:text-sm min-h-[44px]"
+              >
                 🔥 FIRE!
               </button>
 
               {lastGunneryResult && (
                 <div className="mt-2 p-2 bg-green-900/20 border-2 border-green-600 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-green-300 font-bold text-sm">✓ HIT!</div>
-                    <button onClick={() => setLastGunneryResult(null)} className="px-2 py-0.5 bg-slate-700 rounded text-xs">
+                    <div className="text-green-300 font-bold text-xs sm:text-sm">✓ HIT!</div>
+                    <button onClick={() => setLastGunneryResult(null)} className="px-2 py-0.5 bg-[#3a2f1f] rounded text-xs text-[#e8dfc8]">
                       Clear
                     </button>
                   </div>
@@ -2391,14 +2589,14 @@ export default function BTQCompanion() {
                       <strong>{lastGunneryResult.firingShip}</strong> ({lastGunneryResult.arc}) → 
                       <strong> {lastGunneryResult.targetShip}</strong> ({lastGunneryResult.targetLocation})
                     </div>
-                    <div className="grid grid-cols-2 gap-2 mb-2 p-2 bg-slate-900/50 rounded">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2 mb-2 p-2 bg-[#d4c4a8]/50 rounded text-[#2a1810]">
                       <div className="text-center">
-                        <div className="text-xs text-slate-400">Hits</div>
-                        <div className="text-lg font-bold text-cyan-400">{lastGunneryResult.totalHits}</div>
+                        <div className="text-xs font-semibold">Hits</div>
+                        <div className="text-lg font-bold text-green-700">{lastGunneryResult.totalHits}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs text-slate-400">Damage</div>
-                        <div className="text-lg font-bold text-red-400">{lastGunneryResult.totalDamage}</div>
+                        <div className="text-xs font-semibold">Damage</div>
+                        <div className="text-lg font-bold text-red-700">{lastGunneryResult.totalDamage}</div>
                       </div>
                     </div>
                     {lastGunneryResult.aimType === 'Crew' && (
@@ -2419,7 +2617,7 @@ export default function BTQCompanion() {
                     )}
                     <button
                       onClick={applyDamage}
-                      className="w-full px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded font-bold text-xs"
+                      className="w-full px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded font-bold text-xs min-h-[44px]"
                     >
                       ⚡ APPLY DAMAGE
                     </button>
@@ -2431,10 +2629,26 @@ export default function BTQCompanion() {
         )}
 
         {activeTab === 'damage' && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-            <h2 className="text-sm font-bold mb-2">Damage Status</h2>
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
+            <h2 className="text-lg font-bold mb-3 gold-accent heading-font">Damage Status</h2>
+            
+            <div className="mb-3 p-2 bg-[#3a2f1f]/50 rounded border border-[#8b6f47]">
+              <label className="flex items-center gap-2 cursor-pointer text-xs">
+                <input
+                  type="checkbox"
+                  checked={usePvnSurrender}
+                  onChange={(e) => setUsePvnSurrender(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="font-medium">⚖️ Apply PVN Ratio Surrender Penalties (6.95 & 6.96)</span>
+              </label>
+              <div className="text-xs mt-1 pl-6" style={{ color: "#c9b896" }}>
+                Deduct SP based on ship size/PVN ratios (Single Ship: 6.95, Unsupported Ship: 6.96)
+              </div>
+            </div>
+            
             {ships.length === 0 ? (
-              <div className="text-slate-400 text-center py-8 text-xs">No ships</div>
+              <div style={{ color: "#c9b896" }} className="text-center py-8 text-xs">No ships</div>
             ) : (
               <div className="space-y-2">
                 {ships.map(ship => {
@@ -2442,9 +2656,16 @@ export default function BTQCompanion() {
                   const sailPct = Math.floor((ship.sailsLost.length / ship.sails) * 100);
                   
                   return (
-                    <div key={ship.id} className="bg-slate-700 rounded p-2 border border-slate-600">
+                    <div key={ship.id} className="bg-[#3a2f1f] text-[#d9d0b8] rounded p-2 border-2 border-[#2a1f0f] shadow-inner">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-xs">{ship.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-xs">{ship.name}</h3>
+                          {usePvnSurrender && (
+                            <span className="px-1 py-0.5 rounded text-xs font-bold bg-[#4a3f2f] text-[#d4af37] border border-[#8b6f47]">
+                              PVN: {ship.pvn.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex gap-1 items-center">
                           {ship.sp === 0 && (
                             <span className="px-1 py-0.5 rounded text-xs font-bold bg-white text-black">
@@ -2462,21 +2683,21 @@ export default function BTQCompanion() {
                       </div>
                       
                       <div className="grid grid-cols-3 gap-2 mb-2">
-                        <div className="p-2 bg-slate-800 rounded text-center">
-                          <div className="text-xs text-slate-400">Hull</div>
-                          <div className={`text-base font-bold ${hullPct >= 80 ? 'text-red-400' : hullPct >= 50 ? 'text-yellow-400' : 'text-green-400'}`}>
+                        <div className="p-1.5 bg-[#4a3f2f] rounded text-center">
+                          <div style={{ color: "#c9b896" }} className="text-xs mb-0.5">Hull</div>
+                          <div className={`text-sm font-bold ${hullPct >= 80 ? 'text-red-400' : hullPct >= 50 ? 'text-yellow-400' : 'text-green-400'}`}>
                             {100 - hullPct}%
                           </div>
                         </div>
-                        <div className="p-2 bg-slate-800 rounded text-center">
-                          <div className="text-xs text-slate-400">Sails</div>
-                          <div className={`text-base font-bold ${sailPct >= 70 ? 'text-red-400' : sailPct >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
+                        <div className="p-1.5 bg-[#4a3f2f] rounded text-center">
+                          <div style={{ color: "#c9b896" }} className="text-xs mb-0.5">Sails</div>
+                          <div className={`text-sm font-bold ${sailPct >= 70 ? 'text-red-400' : sailPct >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
                             {ship.sails - ship.sailsLost.length}
                           </div>
                         </div>
-                        <div className="p-2 bg-slate-800 rounded text-center">
-                          <div className="text-xs text-slate-400">Crew</div>
-                          <div className="text-base font-bold text-slate-200">
+                        <div className="p-1.5 bg-[#4a3f2f] rounded text-center">
+                          <div style={{ color: "#c9b896" }} className="text-xs mb-0.5">Crew</div>
+                          <div className="text-sm font-bold text-[#e8dfc8]">
                             {ship.crew - ship.crewLoss}
                           </div>
                         </div>
@@ -2497,13 +2718,14 @@ export default function BTQCompanion() {
                           <div className="flex gap-1 mt-2">
                             <button
                               onClick={() => toggleOrganizedFireParty(ship.id)}
-                              className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium flex items-center justify-center gap-1 ${
                                 ship.organizedFireParty 
-                                  ? 'bg-blue-600 text-white' 
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  ? 'bg-orange-700 text-white border-2 border-orange-500' 
+                                  : 'bg-[#3a2f1f] text-[#d4af37] hover:bg-[#2a1f0f] border-2 border-[#8b6f47]'
                               }`}
                             >
-                              {ship.organizedFireParty ? '✓ ' : ''}Fire Party
+                              <span>{ship.organizedFireParty ? '🔥' : '👥'}</span>
+                              <span>{ship.organizedFireParty ? 'Fighting' : 'Fire Party'}</span>
                             </button>
                             <button
                               onClick={(e) => {
@@ -2527,14 +2749,14 @@ export default function BTQCompanion() {
                                 alert('Magazine flooded!');
                               }}
                               disabled={ship.magazineFlooded}
-                              className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium border-2 ${
                                 ship.magazineFlooded
-                                  ? 'bg-blue-900/50 text-blue-300 cursor-not-allowed'
-                                  : 'bg-red-700 text-white hover:bg-red-600'
+                                  ? 'bg-blue-900/70 text-blue-200 border-blue-600 cursor-not-allowed'
+                                  : 'bg-blue-700 text-white hover:bg-blue-600 border-blue-500'
                               }`}
                               type="button"
                             >
-                              {ship.magazineFlooded ? '✓ Flooded' : '💧 Flood Mag'}
+                              {ship.magazineFlooded ? '✓ 💧 Flooded' : '💧 Flood Mag'}
                             </button>
                           </div>
                         </div>
@@ -2556,11 +2778,11 @@ export default function BTQCompanion() {
         )}
 
         {activeTab === 'boarding' && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-            <h2 className="text-sm font-bold mb-3">⚔️ Boarding Actions</h2>
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
+            <h2 className="text-xs sm:text-sm font-bold mb-3 gold-accent heading-font">⚔️ Boarding Actions</h2>
             
             {ships.filter(s => s.grappled && s.status === 'Active').length === 0 ? (
-              <div className="text-slate-400 text-center py-8 text-xs">
+              <div style={{ color: "#c9b896" }} className="text-center py-8 text-xs">
                 No ships grappled. Use Ships tab to grapple ships together.
               </div>
             ) : (
@@ -2569,8 +2791,8 @@ export default function BTQCompanion() {
                 if (!grappledShip) return null;
                 
                 return (
-                  <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3">
-                    <h3 className="text-sm font-bold mb-2">
+                  <div key={ship.id} className="bg-[#3a2f1f] text-[#d9d0b8] rounded p-2 sm:p-3 mb-3">
+                    <h3 className="text-lg font-bold mb-3 gold-accent heading-font">
                       {ship.name} vs {grappledShip.name}
                     </h3>
                     
@@ -2581,13 +2803,13 @@ export default function BTQCompanion() {
                     )}
                     
                     {ship.grappledTurns >= 1 && ship.boardingState && (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                         <button
                           onClick={() => performBoardingAction(ship.id, grappledShip.id, 'portBulwark')}
                           className={`px-3 py-2 rounded text-xs font-bold ${
                             ship.boardingState.portBulwark === 'attacker' ? 'bg-green-700' :
                             ship.boardingState.portBulwark === 'defender' ? 'bg-red-700' :
-                            'bg-slate-600 hover:bg-slate-500'
+                            'bg-[#2a1f0f] hover:bg-slate-500'
                           }`}
                         >
                           Port Bulwark{ship.boardingState.portBulwark === 'attacker' && ' ✓'}
@@ -2597,7 +2819,7 @@ export default function BTQCompanion() {
                           className={`px-3 py-2 rounded text-xs font-bold ${
                             ship.boardingState.starboardBulwark === 'attacker' ? 'bg-green-700' :
                             ship.boardingState.starboardBulwark === 'defender' ? 'bg-red-700' :
-                            'bg-slate-600 hover:bg-slate-500'
+                            'bg-[#2a1f0f] hover:bg-slate-500'
                           }`}
                         >
                           Starboard Bulwark{ship.boardingState.starboardBulwark === 'attacker' && ' ✓'}
@@ -2607,7 +2829,7 @@ export default function BTQCompanion() {
                           className={`px-3 py-2 rounded text-xs font-bold ${
                             ship.boardingState.firstHalfDeck === 'attacker' ? 'bg-green-700' :
                             ship.boardingState.firstHalfDeck === 'defender' ? 'bg-red-700' :
-                            'bg-slate-600 hover:bg-slate-500'
+                            'bg-[#2a1f0f] hover:bg-slate-500'
                           }`}
                         >
                           1st Half Deck{ship.boardingState.firstHalfDeck === 'attacker' && ' ✓'}
@@ -2617,7 +2839,7 @@ export default function BTQCompanion() {
                           className={`px-3 py-2 rounded text-xs font-bold ${
                             ship.boardingState.secondHalfDeck === 'attacker' ? 'bg-green-700' :
                             ship.boardingState.secondHalfDeck === 'defender' ? 'bg-red-700' :
-                            'bg-slate-600 hover:bg-slate-500'
+                            'bg-[#2a1f0f] hover:bg-slate-500'
                           }`}
                         >
                           2nd Half Deck{ship.boardingState.secondHalfDeck === 'attacker' && ' (CAPTURE!)'}
@@ -2632,13 +2854,13 @@ export default function BTQCompanion() {
         )}
 
         {activeTab === 'crew' && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-            <h2 className="text-sm font-bold mb-3">👥 Crew Management (Optional M.0)</h2>
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
+            <h2 className="text-xs sm:text-sm font-bold mb-3 gold-accent heading-font">👥 Crew Management (Optional M.0)</h2>
             
             {ships.map(ship => (
-              <div key={ship.id} className="bg-slate-700 rounded p-3 mb-3">
+              <div key={ship.id} className="bg-[#3a2f1f] text-[#d9d0b8] rounded p-2 sm:p-3 mb-3">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-bold">{ship.name}</h3>
+                  <h3 className="text-xs sm:text-sm font-bold" style={{ color: '#d4af37' }}>{ship.name}</h3>
                   <label className="flex items-center text-xs cursor-pointer">
                     <input
                       type="checkbox"
@@ -2652,7 +2874,7 @@ export default function BTQCompanion() {
                 
                 {ship.crewAssignmentMode && ship.crewAssignments && (
                   <div className="space-y-2 text-xs">
-                    <div className="flex justify-between py-1 border-b border-slate-600">
+                    <div className="flex justify-between py-1 border-b border-[#1a1410]">
                       <span>Total Available Crew:</span>
                       <strong>{ship.crew - ship.crewLoss}</strong>
                     </div>
@@ -2665,10 +2887,10 @@ export default function BTQCompanion() {
                           min="0"
                           value={ship.crewAssignments.gunCrews}
                           onChange={(e) => updateCrewAssignment(ship.id, 'gunCrews', parseInt(e.target.value) || 0)}
-                          className="w-20 bg-slate-600 rounded px-2 py-1 text-xs"
+                          className="w-20 bg-[#2a1f0f] rounded px-2 py-1 text-xs text-[#e8dfc8]"
                         />
                       </label>
-                      <div className="text-slate-400 text-xs pl-2">
+                      <div style={{ color: "#c9b896" }} className="text-xs pl-2">
                         Required: {calculateRequiredGunCrew(ship)}
                       </div>
                     </div>
@@ -2681,10 +2903,10 @@ export default function BTQCompanion() {
                           min="0"
                           value={ship.crewAssignments.sailingCrew}
                           onChange={(e) => updateCrewAssignment(ship.id, 'sailingCrew', parseInt(e.target.value) || 0)}
-                          className="w-20 bg-slate-600 rounded px-2 py-1 text-xs"
+                          className="w-20 bg-[#2a1f0f] rounded px-2 py-1 text-xs text-[#e8dfc8]"
                         />
                       </label>
-                      <div className="text-slate-400 text-xs pl-2">
+                      <div style={{ color: "#c9b896" }} className="text-xs pl-2">
                         Required: {calculateRequiredSailingCrew(ship)}
                       </div>
                     </div>
@@ -2697,22 +2919,22 @@ export default function BTQCompanion() {
                           min="0"
                           value={ship.crewAssignments.fireFighting}
                           onChange={(e) => updateCrewAssignment(ship.id, 'fireFighting', parseInt(e.target.value) || 0)}
-                          className="w-20 bg-slate-600 rounded px-2 py-1 text-xs"
+                          className="w-20 bg-[#2a1f0f] rounded px-2 py-1 text-xs text-[#e8dfc8]"
                         />
                       </label>
-                      <div className="text-slate-400 text-xs pl-2">
+                      <div style={{ color: "#c9b896" }} className="text-xs pl-2">
                         10% per fire recommended
                       </div>
                     </div>
                     
-                    <div className="pt-2 border-t border-slate-600">
+                    <div className="pt-2 border-t border-[#1a1410]">
                       <div className="flex justify-between">
                         <span>Total Assigned:</span>
                         <strong>
                           {Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
                         </strong>
                       </div>
-                      <div className="flex justify-between text-slate-400 mt-1">
+                      <div style={{ color: "#c9b896" }} className="flex justify-between mt-1">
                         <span>Unassigned:</span>
                         <span className={(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0) < 0 ? 'text-red-400 font-bold' : ''}>
                           {(ship.crew - ship.crewLoss) - Object.values(ship.crewAssignments).reduce((sum, v) => sum + v, 0)}
@@ -2735,38 +2957,40 @@ export default function BTQCompanion() {
         )}
 
         {activeTab === 'log' && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-            <h2 className="text-sm font-bold mb-2">Battle Log</h2>
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
+            <h2 className="text-lg font-bold mb-3 gold-accent heading-font">Battle Log</h2>
             <div className="space-y-1 max-h-96 overflow-y-auto">
               {log.slice().reverse().map(entry => (
                 <div key={entry.id} className={`text-xs p-2 rounded ${
                   entry.type === 'error' ? 'bg-red-900/20 text-red-300' :
                   entry.type === 'success' ? 'bg-green-900/20 text-green-300' :
-                  'bg-slate-700 text-slate-300'
+                  'bg-[#3a2f1f] text-[#d9d0b8]'
                 }`}>
-                  <span className="text-slate-500">[T{entry.turn}]</span> {entry.message}
+                  <span className="text-[#c9b896]">[T{entry.turn}]</span> {entry.message}
                 </div>
               ))}
             </div>
           </div>
         )}
+        </div>
 
         {/* Reset Game Confirmation Modal */}
         {showResetConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-lg p-4 border-2 border-red-600 max-w-sm">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+            <div className="bg-[#4a3f2f] text-[#e8dfc8] rounded border-4 border-[#2a1f0f] shadow-2xl-lg p-2 sm:p-4 border-2 border-red-600 max-w-sm">
               <h3 className="text-lg font-bold text-red-400 mb-2">⚠️ Reset Game?</h3>
-              <p className="text-slate-300 mb-4 text-sm">All progress will be lost. Are you sure?</p>
+              <p className="text-[#e8dfc8] mb-2 sm:mb-4 text-xs sm:text-sm">All progress will be lost. Are you sure?</p>
               <div className="flex gap-2">
                 <button
                   onClick={performReset}
-                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded font-bold text-sm"
+                  style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #a52a2a 100%)" }}
+                  className="flex-1 px-4 py-2 rounded font-bold text-xs sm:text-sm min-h-[44px]"
                 >
                   Yes, Reset
                 </button>
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded font-bold text-sm"
+                  className="flex-1 px-4 py-2 bg-[#2a1f0f] hover:bg-[#3a2f1f] rounded font-bold text-xs sm:text-sm text-[#e8dfc8]"
                 >
                   Cancel
                 </button>
@@ -2777,20 +3001,20 @@ export default function BTQCompanion() {
 
         {/* Restart Turn Confirmation Modal */}
         {showRestartConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-lg p-4 border-2 border-yellow-600 max-w-sm">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+            <div className="bg-[#4a3f2f] text-[#e8dfc8] rounded border-4 border-[#2a1f0f] shadow-2xl-lg p-2 sm:p-4 border-2 border-yellow-600 max-w-sm">
               <h3 className="text-lg font-bold text-yellow-400 mb-2">↩️ Restart Turn?</h3>
-              <p className="text-slate-300 mb-4 text-sm">Go back to the previous turn?</p>
+              <p className="text-[#e8dfc8] mb-2 sm:mb-4 text-xs sm:text-sm">Go back to the previous turn?</p>
               <div className="flex gap-2">
                 <button
                   onClick={performRestart}
-                  className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded font-bold text-sm"
+                  className="flex-1 px-4 py-2 bg-[#c5a572] hover:bg-yellow-700 rounded font-bold text-xs sm:text-sm min-h-[44px]"
                 >
                   Yes, Restart
                 </button>
                 <button
                   onClick={() => setShowRestartConfirm(false)}
-                  className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded font-bold text-sm"
+                  className="flex-1 px-4 py-2 bg-[#2a1f0f] hover:bg-[#3a2f1f] rounded font-bold text-xs sm:text-sm text-[#e8dfc8]"
                 >
                   Cancel
                 </button>
