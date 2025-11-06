@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ship, Wind, Target, AlertCircle, Flame, Heart, Skull, Plus, Trash2, Navigation, Anchor, Swords, Users } from 'lucide-react';
 
 // === MAST STRUCTURES ===
@@ -401,6 +401,18 @@ export default function BTQCompanion() {
     setLog(prev => [...prev, { id: Date.now() + Math.random(), message, type, turn }]);
   };
 
+  // Apply PVN penalties when option is enabled
+  useEffect(() => {
+    if (usePvnSurrender && ships.length >= 2) {
+      const updatedShips = calculatePvnPenalties(ships);
+      // Only update if penalties were actually applied (check if any ship changed)
+      const hasChanges = updatedShips.some((ship, idx) => ship.sp !== ships[idx].sp);
+      if (hasChanges) {
+        setShips(updatedShips);
+      }
+    }
+  }, [usePvnSurrender]); // Only run when the option is toggled
+
   const calculateDerivedStats = (form) => {
     const hvn = form.tonnage * 2;
     const svn = Math.round(hvn / (1.3 * form.sails));
@@ -423,6 +435,89 @@ export default function BTQCompanion() {
     const pvn = Math.round(broadside * nationalityMod * form.tonnage);
     
     return { hvn, svn, gdn, lgbwn, cbwn, pvn };
+  };
+
+  // Calculate PVN-based surrender penalties (BTQ 6.95 & 6.96)
+  const calculatePvnPenalties = (currentShips) => {
+    if (!usePvnSurrender || currentShips.length < 2) return currentShips;
+    
+    return currentShips.map(ship => {
+      // Find all enemy ships (different team/faction - for now, compare against all others)
+      const enemyShips = currentShips.filter(s => s.id !== ship.id);
+      if (enemyShips.length === 0) return ship;
+      
+      // Calculate total enemy PVN
+      const totalEnemyPvn = enemyShips.reduce((sum, s) => sum + s.pvn, 0);
+      
+      // Calculate ratio (enemy PVN to this ship's PVN)
+      const ratio = totalEnemyPvn / ship.pvn;
+      
+      let spPenalty = 0;
+      
+      // Apply penalties based on scenario type
+      if (currentShips.length === 2) {
+        // Single Ship Action (6.95)
+        if (ratio >= 7.0) spPenalty = 10;
+        else if (ratio >= 6.0) spPenalty = 9;
+        else if (ratio >= 5.0) spPenalty = 8;
+        else if (ratio >= 4.0) spPenalty = 7;
+        else if (ratio >= 3.0) spPenalty = 6;
+        else if (ratio >= 2.0) spPenalty = 5;
+        else if (ratio >= 1.5) spPenalty = 4;
+        else if (ratio >= 1.1) spPenalty = 3;
+        // else 0
+      } else {
+        // Multiple Ship Action - Unsupported Ship (6.96)
+        if (ratio >= 5.0) spPenalty = 5;
+        else if (ratio >= 4.0) spPenalty = 4;
+        else if (ratio >= 3.0) spPenalty = 3;
+        else if (ratio >= 2.0) spPenalty = 2;
+        // else 0
+      }
+      
+      // Track if we already applied this penalty
+      if (!ship.pvnPenaltyApplied && spPenalty > 0) {
+        const newSp = Math.max(0, ship.sp - spPenalty);
+        addLog(`⚖️ ${ship.name}: -${spPenalty} SP (PVN ratio ${ratio.toFixed(2)}:1)`, 'info');
+        return { ...ship, sp: newSp, pvnPenaltyApplied: true };
+      }
+      
+      return ship;
+    });
+  };
+
+  // Check if ship is a two-decker (has lower gunports)
+  const isTwoDeckerShip = (shipClass) => {
+    return shipClass.includes('1st') || 
+           shipClass.includes('2nd') || 
+           shipClass.includes('3rd') || 
+           shipClass.includes('4th');
+  };
+
+  // Check if weather prevents lower gunports from opening
+  const isHeavyWeather = (windStrength) => {
+    return windStrength === 'Fresh breeze' || windStrength === 'Gale';
+  };
+
+  // Identify lower deck guns (heaviest caliber long guns, not carronades)
+  const getLowerDeckGuns = (ship) => {
+    // Get all long guns (not carronades) from all arcs
+    const allLongGuns = [];
+    Object.entries(ship.arcs).forEach(([arc, guns]) => {
+      guns.forEach(gun => {
+        if (!gun.type.includes('Carronade')) {
+          allLongGuns.push({ ...gun, arc });
+        }
+      });
+    });
+
+    if (allLongGuns.length === 0) return [];
+
+    // Find the heaviest poundage (lower deck guns are the heaviest)
+    const maxPoundage = Math.max(...allLongGuns.map(g => g.poundage));
+    
+    // Return all guns with max poundage (these are lower deck)
+    return allLongGuns.filter(g => g.poundage === maxPoundage);
   };
 
   const getRangeBand = (gunType, distance) => {
@@ -465,10 +560,39 @@ export default function BTQCompanion() {
 
     const { arc, targetLocation, distance, shotType, aimType, rakeType, useInitialBroadside } = gunneryForm;
 
-    const availableGuns = firingShip.arcs[arc]?.filter(g => g.count > 0) || [];
+    let availableGuns = firingShip.arcs[arc]?.filter(g => g.count > 0) || [];
     if (availableGuns.length === 0) {
       addLog(`⚠️ No guns in ${arc} arc`, 'error');
       return;
+    }
+
+    // HEAVY WEATHER RULE: Lower gunports closed on two-deckers in Fresh breeze or Gale
+    let lowerDeckRestriction = false;
+    if (isTwoDeckerShip(firingShip.class) && isHeavyWeather(wind.strength)) {
+      const lowerDeckGuns = getLowerDeckGuns(firingShip);
+      const lowerDeckPoundage = lowerDeckGuns.length > 0 ? lowerDeckGuns[0].poundage : 0;
+      
+      if (lowerDeckPoundage > 0) {
+        // Filter out lower deck guns (heaviest long guns)
+        const filteredGuns = availableGuns.filter(gun => {
+          return gun.type.includes('Carronade') || gun.poundage < lowerDeckPoundage;
+        });
+        
+        if (filteredGuns.length < availableGuns.length) {
+          const excludedCount = availableGuns.filter(g => 
+            !g.type.includes('Carronade') && g.poundage === lowerDeckPoundage
+          ).reduce((sum, g) => sum + g.count, 0);
+          
+          addLog(`🌊 ${firingShip.name}: Lower gunports closed in ${wind.strength}! ${excludedCount}× ${lowerDeckPoundage}# guns cannot fire`, 'info');
+          lowerDeckRestriction = true;
+          availableGuns = filteredGuns;
+        }
+        
+        if (availableGuns.length === 0) {
+          addLog(`⚠️ ${firingShip.name}: ALL guns unavailable in heavy weather (lower deck only)`, 'error');
+          return;
+        }
+      }
     }
 
     // Calculate available gun crew (BTQ M.3 - Gun Crews must be fully manned)
@@ -1373,6 +1497,19 @@ export default function BTQCompanion() {
       
       if (fireHullDamage > 0) {
         addLog(`🔥 ${ship.name}: Fire burns ${fireHullDamage} hull!`, 'error');
+        
+        // Apply fire damage to gdnCarry (same as hull damage)
+        updatedShip.gdnCarry += fireHullDamage;
+        
+        // Calculate SP loss from fire damage (every 5% hull = 1 SP)
+        const newHullPct = Math.floor(((ship.hullDamage + fireHullDamage) / ship.hvn) * 100);
+        const oldHullPct = Math.floor((ship.hullDamage / ship.hvn) * 100);
+        const spLoss = Math.floor(newHullPct / 5) - Math.floor(oldHullPct / 5);
+        
+        if (spLoss > 0) {
+          updatedShip.sp = Math.max(0, updatedShip.sp - spLoss);
+          addLog(`📊 ${ship.name}: -${spLoss} SP from fire damage (${newHullPct}% hull)`, 'error');
+        }
       }
       
       return {
@@ -1696,10 +1833,19 @@ export default function BTQCompanion() {
       soldierPercent: 0,
       crewAssignmentMode: false,
       crewAssignments: null,
+      pvnPenaltyApplied: false,
       status: 'Active'
     };
 
-    setShips(prev => [...prev, newShip]);
+    setShips(prev => {
+      const updatedShips = [...prev, newShip];
+      // Apply PVN penalties if option is enabled
+      if (usePvnSurrender && updatedShips.length >= 2) {
+        // Reset penalty flags for recalculation
+        return calculatePvnPenalties(updatedShips.map(s => ({ ...s, pvnPenaltyApplied: false })));
+      }
+      return updatedShips;
+    });
     addLog(`✅ ${newShip.name} added`, 'success');
     setShipAddedMessage(`✓ ${newShip.name} added!`);
     setTimeout(() => setShipAddedMessage(''), 3000);
@@ -2187,6 +2333,11 @@ export default function BTQCompanion() {
                           ⚑ STRUCK!
                         </span>
                       )}
+                      {isTwoDeckerShip(ship.class) && isHeavyWeather(wind.strength) && getLowerDeckGuns(ship).length > 0 && (
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-600 text-white" title="Lower gunports closed in heavy weather">
+                          🌊 LOWER CLOSED
+                        </span>
+                      )}
                       <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                         ship.sp >= 7 ? 'bg-green-700' : ship.sp >= 4 ? 'bg-yellow-700' : 'bg-red-700'
                       }`}>
@@ -2451,6 +2602,31 @@ export default function BTQCompanion() {
         {activeTab === 'gunnery' && (
           <div className="wood-border p-4 sm:p-6 rounded-lg">
             <h2 className="text-lg font-bold mb-3 gold-accent heading-font">Gunnery</h2>
+            
+            {/* Heavy Weather Warning Banner */}
+            {isHeavyWeather(wind.strength) && ships.some(s => isTwoDeckerShip(s.class)) && (
+              <div className="mb-3 p-3 bg-blue-900/30 border-2 border-blue-700 rounded text-xs">
+                <div className="font-bold text-blue-300 mb-1 flex items-center gap-2">
+                  🌊 HEAVY WEATHER - LOWER GUNPORTS CLOSED
+                </div>
+                <div className="text-blue-200 space-y-1">
+                  <div>• Wind: <strong>{wind.strength}</strong> - Too rough to open lower deck gunports</div>
+                  <div>• Two-decker ships (1st-4th rates) can only fire upper deck guns</div>
+                  <div>• Heaviest caliber long guns are unavailable</div>
+                  {ships.filter(s => isTwoDeckerShip(s.class)).map(ship => {
+                    const lowerGuns = getLowerDeckGuns(ship);
+                    const lowerPoundage = lowerGuns.length > 0 ? lowerGuns[0].poundage : 0;
+                    const lowerCount = lowerGuns.reduce((sum, g) => sum + g.count, 0);
+                    return lowerPoundage > 0 ? (
+                      <div key={ship.id} className="text-yellow-300 font-bold mt-1">
+                        ⚠️ {ship.name}: {lowerCount}× {lowerPoundage}# guns CLOSED
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2">
                 <div>
