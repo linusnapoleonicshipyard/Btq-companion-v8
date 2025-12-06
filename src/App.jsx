@@ -425,7 +425,10 @@ export default function BTQCompanion() {
     const svn = Math.round(hvn / (1.3 * form.sails));
     const totalGuns = form.guns.reduce((sum, g) => sum + g.count, 0) + 
                       form.bowChasers.count + form.sternChasers.count;
-    const gdn = Math.round((totalGuns * hvn) / 1000);
+    
+    // GDN = HVN / Total Guns (BTQ correct formula)
+    const gdn = Math.round(hvn / totalGuns);
+    
     const totalPoundage = form.guns.reduce((sum, g) => sum + (g.poundage * g.count), 0);
     const lgbwn = Math.round(totalPoundage / 4);
     const cbwn = Math.round(hvn / 40);
