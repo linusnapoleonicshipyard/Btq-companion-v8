@@ -298,10 +298,14 @@ const FIRE_SPREAD_CHANCES = {
   "Gale": 60
 };
 
-// ENHANCED FIRE SYSTEM - Magazine Explosion Risk (House Rule - Adjusted)
+// ENHANCED FIRE SYSTEM - Magazine Explosion Risk (L.4.3 - CORRECTED to BTQ 2025)
 const MAGAZINE_EXPLOSION_RISK = {
-  1: 0, 2: 0, 3: 0, 4: 0,
-  5: 3, 6: 7, 7: 12, 8: 18, 9: 25
+  1: 0, 2: 0, 3: 0,     // Game turns 1-3: None
+  4: 5,                  // Game turn 4: 1-5 (5%)
+  5: 10,                 // Game turn 5: 1-10 (10%)
+  6: 20,                 // Game turn 6: 1-20 (20%)
+  7: 35,                 // Game turn 7: 1-35 (35%)
+  8: 50, 9: 50           // Game turn 8+: 1-50 (50%)
 };
 
 // BOARDING SYSTEM - Nationality Boarding Casualty Factor Tables (H.3)
@@ -386,7 +390,8 @@ export default function BTQCompanion() {
     shotType: 'Ball',
     aimType: 'Hull',
     rakeType: 'None',
-    useInitialBroadside: true
+    useInitialBroadside: true,
+    halfDamage: false
   });
   const [lastGunneryResult, setLastGunneryResult] = useState(null);
   const [previousTurnState, setPreviousTurnState] = useState(null);
@@ -396,6 +401,8 @@ export default function BTQCompanion() {
   // V8 STATE
   const [useEnhancedFire, setUseEnhancedFire] = useState(true);
   const [usePvnSurrender, setUsePvnSurrender] = useState(false);
+  const [useReducedCrewDamage, setUseReducedCrewDamage] = useState(false);
+  const [useModifiedShot, setUseModifiedShot] = useState(false);
 
   const addLog = (message, type = 'info') => {
     setLog(prev => [...prev, { id: Date.now() + Math.random(), message, type, turn }]);
@@ -560,6 +567,44 @@ export default function BTQCompanion() {
 
     const { arc, targetLocation, distance, shotType, aimType, rakeType, useInitialBroadside } = gunneryForm;
 
+    // Validate shot type / aim type combination BEFORE checking guns
+    if (shotType === 'Dismantling' && aimType !== 'Rigging') {
+      addLog(`⚠️ Dismantling shot can only be fired at Rigging, not ${aimType}`, 'error');
+      return;
+    }
+    if ((shotType === 'Grape' || shotType === 'Canister') && aimType !== 'Crew') {
+      addLog(`⚠️ ${shotType} shot can only be fired at Crew, not ${aimType}`, 'error');
+      return;
+    }
+
+    // Check range restrictions for shot types
+    const firstGunType = firingShip.arcs[arc]?.find(g => g.count > 0)?.type;
+    if (firstGunType) {
+      const testRangeBand = getRangeBand(firstGunType, distance);
+      
+      if (testRangeBand === 'Long' || testRangeBand === 'Extreme') {
+        if (shotType === 'Double') {
+          addLog(`⚠️ Double shot cannot be fired at ${testRangeBand} range (max: Close)`, 'error');
+          return;
+        }
+        if (shotType === 'Dismantling') {
+          addLog(`⚠️ Dismantling shot cannot be fired at ${testRangeBand} range (max: Medium)`, 'error');
+          return;
+        }
+      }
+      
+      if (testRangeBand === 'Medium' || testRangeBand === 'Long' || testRangeBand === 'Extreme') {
+        if (shotType === 'Grape') {
+          addLog(`⚠️ Grape shot cannot be fired at ${testRangeBand} range (max: Close)`, 'error');
+          return;
+        }
+        if (shotType === 'Canister') {
+          addLog(`⚠️ Canister shot cannot be fired at ${testRangeBand} range (max: Close)`, 'error');
+          return;
+        }
+      }
+    }
+
     let availableGuns = firingShip.arcs[arc]?.filter(g => g.count > 0) || [];
     if (availableGuns.length === 0) {
       addLog(`⚠️ No guns in ${arc} arc`, 'error');
@@ -619,7 +664,18 @@ export default function BTQCompanion() {
                         firingShip.initialBroadside[arc];
 
     const ngm = NATIONALITY_MODIFIERS[firingShip.nationality] || 1.0;
-    const shotMod = SHOT_MODIFIERS[shotType] || 1.0;
+    
+    // Shot modifier - use house rule values if enabled
+    let shotMod;
+    if (useModifiedShot) {
+      // House rule: modified shot type multipliers
+      const MODIFIED_SHOT_MODIFIERS = { Ball: 1.0, Double: 1.25, Dismantling: 1.5, Grape: 1.2, Canister: 1.6 };
+      shotMod = MODIFIED_SHOT_MODIFIERS[shotType] || 1.0;
+    } else {
+      // Standard BTQ rules
+      shotMod = SHOT_MODIFIERS[shotType] || 1.0;
+    }
+    
     const rakeMod = rakeType === 'Bow' ? 1.1 : rakeType === 'Stern' ? 1.25 : 1.0;
     
     // Calculate required crew for THIS specific arc being fired
@@ -682,11 +738,21 @@ export default function BTQCompanion() {
     }
 
     if (totalHits === 0) {
-      addLog('⚠️ No guns could fire (insufficient crew to man any guns)', 'error');
+      // If we reach here, it's either insufficient crew or all guns out of range
+      if (totalGunsFiring === 0) {
+        addLog('⚠️ No guns could fire (insufficient crew to man any guns)', 'error');
+      } else {
+        addLog('⚠️ No hits scored (likely all guns out of range)', 'error');
+      }
       return;
     }
 
     totalDamage = Math.round(totalDamage);
+    
+    // Apply half damage if toggle is enabled
+    if (gunneryForm.halfDamage) {
+      totalDamage = Math.floor(totalDamage / 2);
+    }
 
     // Check for hull shots at range that might hit sails instead (BTQ gunnery calculator)
     let actualAimType = aimType;
@@ -706,7 +772,8 @@ export default function BTQCompanion() {
 
     let crewLost = 0;
     if (actualAimType === 'Crew') {
-      crewLost = Math.floor(totalDamage / 3);
+      const crewDamageDivisor = useReducedCrewDamage ? 6 : 1; // House rule: 1/6 damage if enabled, otherwise full (1/1)
+      crewLost = Math.floor(totalDamage / crewDamageDivisor);
     }
 
     if (ibAvailable) {
@@ -912,8 +979,7 @@ export default function BTQCompanion() {
           updatedShip.fires.push({ 
             id: Date.now() + Math.random(), 
             age: 0, 
-            intensity: 'Minor', 
-            spreadRolled: false 
+            intensity: 'Minor'
           });
           updatedShip.sp = Math.max(0, updatedShip.sp - 1);
           damageLog.push(`🔥 FIRE STARTED! (-1 SP)`);
@@ -1017,7 +1083,8 @@ export default function BTQCompanion() {
           result = applyHullDamage(s, damage, targetLocation);
           allLogs = result.log;
         } else if (aimType === 'Crew') {
-          const casualties = Math.floor(damage / 3);
+          const crewDamageDivisor = useReducedCrewDamage ? 6 : 1; // House rule: 1/6 damage if enabled, otherwise full (1/1)
+          const casualties = Math.floor(damage / crewDamageDivisor);
           result = applyCrewDamage(s, casualties);
           allLogs = result.log;
         } else {
@@ -1084,8 +1151,14 @@ export default function BTQCompanion() {
     if (ship.magazineFlooded) return false;
     if (!useEnhancedFire) return false;
     
-    const risk = MAGAZINE_EXPLOSION_RISK[Math.min(fire.age, 9)] || 25;
+    const ageKey = Math.min(fire.age, 9);
+    const risk = MAGAZINE_EXPLOSION_RISK.hasOwnProperty(ageKey) 
+      ? MAGAZINE_EXPLOSION_RISK[ageKey] 
+      : 25; // Fallback only for undefined ages (10+)
     const roll = Math.random() * 100;
+    
+    // Debug logging
+    console.log(`${ship.name} Magazine Check: Age ${fire.age}, Risk ${risk}%, Roll ${roll.toFixed(1)}`);
     
     if (roll <= risk) {
       addLog(`💥 ${ship.name}: MAGAZINE EXPLOSION! Ship destroyed!`, 'error');
@@ -1096,7 +1169,6 @@ export default function BTQCompanion() {
 
   const shouldFireSpread = (fire, ship) => {
     if (!useEnhancedFire) return false;
-    if (fire.spreadRolled) return false;
     
     const baseChance = FIRE_SPREAD_CHANCES[wind.strength] || 35;
     let spreadChance = baseChance;
@@ -1129,6 +1201,58 @@ export default function BTQCompanion() {
         const newState = !s.organizedFireParty;
         addLog(`${s.name}: Organized fire party ${newState ? 'activated' : 'deactivated'}`, 'info');
         return { ...s, organizedFireParty: newState };
+      }
+      return s;
+    }));
+  };
+
+  // Manual damage control functions
+  const manualRemoveSail = (shipId) => {
+    setShips(prev => prev.map(s => {
+      if (s.id === shipId) {
+        // Find next remaining sail
+        const remainingSails = s.sailLayout.filter(sail => 
+          !s.sailsLost.some(lost => lost.name === sail.name)
+        );
+        
+        if (remainingSails.length === 0) {
+          addLog(`${s.name}: All sails already lost!`, 'error');
+          return s;
+        }
+        
+        // Remove the first remaining sail (no mast destruction roll)
+        const sailToRemove = remainingSails[0];
+        const newSailsLost = [...s.sailsLost, sailToRemove];
+        
+        addLog(`✂️ ${s.name}: Manually removed ${sailToRemove.name} (no mast roll)`, 'info');
+        
+        return {
+          ...s,
+          sailsLost: newSailsLost,
+          sailDamage: s.sailDamage + s.svn // Increment sail damage appropriately
+        };
+      }
+      return s;
+    }));
+  };
+
+  const manualStartFire = (shipId) => {
+    setShips(prev => prev.map(s => {
+      if (s.id === shipId) {
+        const newFire = {
+          id: Date.now() + Math.random(),
+          age: 0,
+          intensity: 'Minor'
+        };
+        
+        const newFires = [...s.fires, newFire];
+        addLog(`🔥 ${s.name}: Fire started manually (${newFires.length} total)`, 'info');
+        
+        return {
+          ...s,
+          fires: newFires,
+          sp: Math.max(0, s.sp - 1) // -1 SP for fire (BTQ house rule)
+        };
       }
       return s;
     }));
@@ -1356,7 +1480,7 @@ export default function BTQCompanion() {
   };
 
   const calculateRequiredSailingCrew = (ship) => {
-    return Math.ceil(ship.hvn / 12);
+    return Math.ceil(ship.hvn / 30);
   };
 
   const getGunCrewPenalty = (ship) => {
@@ -1454,29 +1578,36 @@ export default function BTQCompanion() {
       // If no fires, return the updated ship (with grappled turns incremented)
       if (ship.fires.length === 0) return updatedShip;
       
+      // Track new fires created by spreading
+      const newSpreadFires = [];
+      
+      // Track if magazine explosion occurred
+      let magazineExploded = false;
+      
       const updatedFires = ship.fires.map(fire => {
+        // If magazine already exploded, no need to process remaining fires
+        if (magazineExploded) return null;
+        
         const newAge = fire.age + 1;
         const newIntensity = getFireIntensity(newAge);
         
         // Check for magazine explosion (v8)
         if (useEnhancedFire && checkMagazineExplosion({ ...fire, age: newAge }, ship)) {
+          magazineExploded = true;
           return null; // Fire removed if ship explodes
         }
         
-        // Check for fire spreading (v8)
+        // Check for fire spreading (v8) - BTQ L.4.1.1: roll for each fire EVERY turn
         let newFire = { ...fire, age: newAge, intensity: newIntensity };
-        if (useEnhancedFire && !fire.spreadRolled && shouldFireSpread(newFire, ship)) {
-          addLog(`🔥 Fire on ${ship.name} spreads!`, 'error');
-          newFire.spreadRolled = true;
+        if (useEnhancedFire && shouldFireSpread(newFire, ship)) {
+          addLog(`🔥 Fire on ${ship.name} spreads! (creates new fire)`, 'error');
           
-          // Add new fire if less than 3 total
-          if (updatedShip.fires.length < 3) {
-            updatedShip.fires = [...updatedShip.fires, { 
-              age: 0, 
-              intensity: 'Minor', 
-              spreadRolled: false 
-            }];
-          }
+          // Queue new fire to be added after map completes
+          newSpreadFires.push({ 
+            id: Date.now() + Math.random(),
+            age: 0, 
+            intensity: 'Minor'
+          });
         }
         
         // HOUSE RULE: Fire crew casualties based on intensity
@@ -1532,8 +1663,11 @@ export default function BTQCompanion() {
         return newFire;
       }).filter(f => f !== null);
       
+      // Add new fires from spreading (BTQ L.4.1.2: "creates a new, separate fire")
+      const allFires = [...updatedFires, ...newSpreadFires];
+      
       let fireHullDamage = 0;
-      updatedFires.forEach(fire => {
+      allFires.forEach(fire => {
         if (fire.age >= 4) {
           const fivePctHull = Math.round(ship.hvn * 0.05);
           fireHullDamage += fivePctHull;
@@ -1559,8 +1693,10 @@ export default function BTQCompanion() {
       
       return {
         ...updatedShip,
-        fires: updatedFires,
-        hullDamage: ship.hullDamage + fireHullDamage
+        fires: magazineExploded ? [] : allFires, // Clear all fires if exploded
+        hullDamage: ship.hullDamage + fireHullDamage,
+        status: magazineExploded ? 'Exploded' : updatedShip.status || 'Active',
+        sp: magazineExploded ? 0 : updatedShip.sp
       };
     });
     
@@ -1757,7 +1893,8 @@ export default function BTQCompanion() {
   const getTurnCap = (shipClass) => {
     if (shipClass.includes('1st') || shipClass.includes('2nd')) return 3;
     if (shipClass.includes('3rd')) return 5;
-    if (shipClass.includes('4th')) return 7;
+    if (shipClass.includes('4th')) return 6;  // Fixed: BTQ 4.21 - 4th rates (50-58 guns) = 6 points
+    if (shipClass.includes('Large Frigates')) return 7;  // Fixed: BTQ 4.21 - Large frigates (42-48 guns) = 7 points
     if (shipClass.includes('5th') || shipClass.includes('6th')) return 8;
     if (shipClass.includes('Sloops') || shipClass.includes('Xebecs')) return 9;
     if (shipClass.includes('Brigs') || shipClass.includes('Snows')) return 9;
@@ -1854,11 +1991,19 @@ export default function BTQCompanion() {
     });
 
     if (shipForm.bowChasers.count > 0) {
-      arcs.Bow.push(shipForm.bowChasers);
+      arcs.Bow.push({
+        type: shipForm.bowChasers.type,
+        poundage: shipForm.bowChasers.poundage,
+        count: shipForm.bowChasers.count
+      });
     }
 
     if (shipForm.sternChasers.count > 0) {
-      arcs.Stern.push(shipForm.sternChasers);
+      arcs.Stern.push({
+        type: shipForm.sternChasers.type,
+        poundage: shipForm.sternChasers.poundage,
+        count: shipForm.sternChasers.count
+      });
     }
 
     const newShip = {
@@ -2177,6 +2322,32 @@ export default function BTQCompanion() {
             </label>
             <span className="text-xs" style={{ color: '#5a4635' }}>Fire spreading, intensity levels, magazine explosions</span>
           </div>
+          
+          <div className="parchment-texture rounded px-3 py-2 mt-2 flex items-center gap-2 sm:gap-4 text-xs flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useReducedCrewDamage}
+                onChange={(e) => setUseReducedCrewDamage(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="font-medium ink-text">💀 Reduced Crew Damage (House Rule)</span>
+            </label>
+            <span className="text-xs" style={{ color: '#5a4635' }}>1/6 damage vs crew (OFF = full 1/1 damage)</span>
+          </div>
+          
+          <div className="parchment-texture rounded px-3 py-2 mt-2 flex items-center gap-2 sm:gap-4 text-xs flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useModifiedShot}
+                onChange={(e) => setUseModifiedShot(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="font-medium ink-text">🎯 Shot Type Modification (House Rule)</span>
+            </label>
+            <span className="text-xs" style={{ color: '#5a4635' }}>Dismantling 1.5×, Grape 1.2×, Canister 1.6× (OFF = BTQ standard)</span>
+          </div>
         </div>
 
         <div className="parchment-texture rounded-lg p-3 sm:p-4">
@@ -2395,7 +2566,12 @@ export default function BTQCompanion() {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-sm sm:text-base" style={{ color: '#d4af37' }}>{ship.name}</h3>
                     <div className="flex gap-2 items-center">
-                      {ship.sp === 0 && (
+                      {ship.status === 'Exploded' && (
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-900 text-yellow-400 animate-pulse">
+                          💥 EXPLODED!
+                        </span>
+                      )}
+                      {ship.sp === 0 && ship.status !== 'Exploded' && (
                         <span className="px-2 py-0.5 rounded text-xs font-bold bg-white text-black animate-pulse">
                           ⚑ STRUCK!
                         </span>
@@ -2824,6 +3000,15 @@ export default function BTQCompanion() {
                 />
                 <label className="text-xs">Use Initial Broadside (+50)</label>
               </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={gunneryForm.halfDamage}
+                  onChange={(e) => setGunneryForm(prev => ({ ...prev, halfDamage: e.target.checked }))}
+                />
+                <label className="text-xs">Partial Broadside (÷2)</label>
+              </div>
 
               <button 
                 onClick={executeGunnery} 
@@ -2924,7 +3109,12 @@ export default function BTQCompanion() {
                           )}
                         </div>
                         <div className="flex gap-1 items-center">
-                          {ship.sp === 0 && (
+                          {ship.status === 'Exploded' && (
+                            <span className="px-1 py-0.5 rounded text-xs font-bold bg-red-900 text-yellow-400 animate-pulse">
+                              💥
+                            </span>
+                          )}
+                          {ship.sp === 0 && ship.status !== 'Exploded' && (
                             <span className="px-1 py-0.5 rounded text-xs font-bold bg-white text-black">
                               ⚑
                             </span>
@@ -3018,6 +3208,30 @@ export default function BTQCompanion() {
                           </div>
                         </div>
                       )}
+
+                      {/* Manual Damage Controls */}
+                      <div className="p-2 bg-[#2a1f0f]/50 border border-[#8b6f47] rounded text-xs mb-2">
+                        <div className="font-bold text-[#d4af37] mb-1">🎛️ Manual Controls</div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => manualRemoveSail(ship.id)}
+                            disabled={ship.sailsLost.length >= ship.sails}
+                            className={`flex-1 px-2 py-1 rounded text-xs font-medium border-2 ${
+                              ship.sailsLost.length >= ship.sails
+                                ? 'bg-gray-700/50 text-gray-400 border-gray-600 cursor-not-allowed'
+                                : 'bg-[#3a2f1f] text-[#d4af37] hover:bg-[#2a1f0f] border-[#8b6f47]'
+                            }`}
+                          >
+                            ✂️ Remove Sail ({ship.sails - ship.sailsLost.length} left)
+                          </button>
+                          <button
+                            onClick={() => manualStartFire(ship.id)}
+                            className="flex-1 px-2 py-1 rounded text-xs font-medium bg-orange-700 text-white hover:bg-orange-600 border-2 border-orange-500"
+                          >
+                            🔥 Start Fire ({ship.fires.length})
+                          </button>
+                        </div>
+                      </div>
 
                       {(ship.rudder || ship.wheel || ship.magazineFlooded) && (
                         <div className="p-2 bg-red-900/30 border border-red-700 rounded text-xs space-y-1">
