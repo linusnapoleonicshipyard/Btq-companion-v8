@@ -126,7 +126,7 @@ const getMastStructure = (shipClass) => {
 
 const GUN_TYPES = [
   "48# Long", "42# Long", "36# Long", "32# Long", "30# Long", "29# Long",
-  "24# Long", "18# Long", "12# Long", "9# Long", "8# Long", "6# Long", "4# Long", "3# Long",
+  "24# Long", "18# Long", "12# Long", "9# Long", "8# Long", "6# Long", "4# Long", "3# Long", "1/2# Swivel",
   "68# Carronade", "42# Carronade", "36# Carronade", "32# Carronade", "24# Carronade",
   "18# Carronade", "12# Carronade"
 ];
@@ -141,7 +141,11 @@ const RANGE_BANDS = {
   "18# Long": { PB: [0, 2], Close: [2.1, 25], Medium: [25.1, 54], Long: [54.1, 82], Extreme: [82.1, 195] },
   "12# Long": { PB: [0, 2], Close: [2.1, 20], Medium: [20.1, 40], Long: [40.1, 60], Extreme: [60.1, 143] },
   "9# Long": { PB: [0, 2], Close: [2.1, 19], Medium: [19.1, 37], Long: [37.1, 57], Extreme: [57.1, 135] },
+  "8# Long": { PB: [0, 2], Close: [2.1, 18], Medium: [18.1, 36], Long: [36.1, 54], Extreme: [54.1, 128] },
   "6# Long": { PB: [0, 2], Close: [2.1, 19], Medium: [19.1, 37], Long: [37.1, 57], Extreme: [57.1, 135] },
+  "4# Long": { PB: [0, 2], Close: [2.1, 16], Medium: [16.1, 32], Long: [32.1, 48], Extreme: [48.1, 115] },
+  "3# Long": { PB: [0, 2], Close: [2.1, 15], Medium: [15.1, 30], Long: [30.1, 45], Extreme: [45.1, 107] },
+  "1/2# Swivel": { PB: [0, 2], Close: [2.1, 8], Medium: [8.1, 15], Long: [15.1, 23], Extreme: [23.1, 54] },
   "68# Carronade": { PB: [0, 2], Close: [2.1, 14], Medium: [14.1, 23], Long: [23.1, 35], Extreme: [35.1, 94] },
   "42# Carronade": { PB: [0, 2], Close: [2.1, 14], Medium: [14.1, 21], Long: [21.1, 32], Extreme: [32.1, 86] },
   "32# Carronade": { PB: [0, 2], Close: [2.1, 10], Medium: [10.1, 20], Long: [20.1, 30], Extreme: [30.1, 83] }
@@ -194,9 +198,20 @@ const NATIONALITY_MODIFIERS = {
 
 const GUN_CREW_SIZES = {
   "48# Long": 14, "42# Long": 14, "36# Long": 12, "32# Long": 12, "30# Long": 12, "29# Long": 12,
-  "24# Long": 10, "18# Long": 8, "12# Long": 8, "9# Long": 6, "8# Long": 6, "6# Long": 4, "4# Long": 4, "3# Long": 3,
+  "24# Long": 10, "18# Long": 8, "12# Long": 8, "9# Long": 6, "8# Long": 6, "6# Long": 4, "4# Long": 4, "3# Long": 3, "1/2# Swivel": 2,
   "68# Carronade": 4, "42# Carronade": 4, "36# Carronade": 4, "32# Carronade": 4, 
   "24# Carronade": 3, "18# Carronade": 3, "12# Carronade": 2
+};
+
+// Helper function to parse gun poundage from gun type string
+// Handles regular numbers (e.g., "24# Long" → 24) and fractions (e.g., "1/2# Swivel" → 0.5)
+const parseGunPoundage = (gunType) => {
+  const fractionMatch = gunType.match(/(\d+)\/(\d+)#/);
+  if (fractionMatch) {
+    return parseFloat(fractionMatch[1]) / parseFloat(fractionMatch[2]);
+  }
+  const numberMatch = gunType.match(/\d+/);
+  return numberMatch ? parseInt(numberMatch[0]) : 0;
 };
 
 // COMPLETE MOVEMENT TABLES WITH DRIFTING
@@ -1886,7 +1901,7 @@ export default function BTQCompanion() {
         if (i !== index) return g;
         const updated = { ...g, [field]: value };
         if (field === 'type') {
-          updated.poundage = parseInt(value.match(/\d+/)[0]);
+          updated.poundage = parseGunPoundage(value);
         }
         return updated;
       })
@@ -2492,11 +2507,11 @@ export default function BTQCompanion() {
                         value={shipForm.bowChasers.type}
                         onChange={(e) => setShipForm(prev => ({ 
                           ...prev, 
-                          bowChasers: { ...prev.bowChasers, type: e.target.value, poundage: parseInt(e.target.value.match(/\d+/)[0]) }
+                          bowChasers: { ...prev.bowChasers, type: e.target.value, poundage: parseGunPoundage(e.target.value) }
                         }))}
                         className="flex-1 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       >
-                        {GUN_TYPES.slice(0, 14).map(t => <option key={t} value={t}>{t}</option>)}
+                        {GUN_TYPES.slice(0, 15).map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                       <input
                         type="number"
@@ -2516,11 +2531,11 @@ export default function BTQCompanion() {
                         value={shipForm.sternChasers.type}
                         onChange={(e) => setShipForm(prev => ({ 
                           ...prev, 
-                          sternChasers: { ...prev.sternChasers, type: e.target.value, poundage: parseInt(e.target.value.match(/\d+/)[0]) }
+                          sternChasers: { ...prev.sternChasers, type: e.target.value, poundage: parseGunPoundage(e.target.value) }
                         }))}
                         className="flex-1 bg-[#3a2f1f] border-2 border-[#2a1f0f] shadow-inner rounded px-1 py-1 text-xs text-[#e8dfc8]"
                       >
-                        {GUN_TYPES.slice(0, 14).map(t => <option key={t} value={t}>{t}</option>)}
+                        {GUN_TYPES.slice(0, 15).map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                       <input
                         type="number"
