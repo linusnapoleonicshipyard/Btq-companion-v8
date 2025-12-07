@@ -214,6 +214,13 @@ const parseGunPoundage = (gunType) => {
   return numberMatch ? parseInt(numberMatch[0]) : 0;
 };
 
+// Helper function to get maximum range for a gun type
+const getMaxRange = (gunType) => {
+  const bands = RANGE_BANDS[gunType];
+  if (!bands) return 0;
+  return bands.Extreme[1];
+};
+
 // COMPLETE MOVEMENT TABLES WITH DRIFTING
 const MOVEMENT_TABLES = {
   "1st & 2nd rates": {
@@ -829,11 +836,30 @@ export default function BTQCompanion() {
 
     setLastGunneryResult(result);
     
-    let logMsg = `💥 ${firingShip.name} fires ${totalGunsFiring} guns at ${targetLocation}: ${totalHits.toFixed(1)} hits, ${totalDamage} dmg`;
+    // Enhanced detailed logging with per-gun-type range bands
+    addLog(`🔥 ${firingShip.name} fires ${arc} at ${targetShip.name} (${distance}cm)`, 'success');
+    
+    // Show each gun type with its specific range band
+    availableGuns.forEach(gun => {
+      const gunRangeBand = getRangeBand(gun.type, distance);
+      const gunRangeMod = gunRangeBand === 'PB' ? 1.0 : RANGE_MODIFIERS[gunRangeBand];
+      
+      if (gunRangeBand === 'Out of Range') {
+        addLog(`   ❌ ${gun.count}× ${gun.type}: OUT OF RANGE (max ${getMaxRange(gun.type)}cm)`, 'warning');
+      } else {
+        addLog(`   📊 ${gun.count}× ${gun.type}: ${gunRangeBand} (${gunRangeMod.toFixed(2)}× modifier)`, 'info');
+      }
+    });
+    
     if (unmannedGuns > 0) {
-      logMsg += ` (${unmannedGuns} guns unmanned)`;
+      addLog(`   ⚠️ Crew shortage: ${totalGunsFiring} of ${totalGunsAvailable} guns manned (${unmannedGuns} unmanned)`, 'warning');
+    } else {
+      addLog(`   ✅ All ${totalGunsFiring} guns fully manned`, 'info');
     }
-    addLog(logMsg, 'success');
+    
+    const nationalityMod = NATIONALITY_MODIFIERS[firingShip.nationality] || 1.0;
+    addLog(`   🎯 Other modifiers: ${nationalityMod.toFixed(2)}× (nationality) × ${shotMod}× (${shotType})${rakeType !== 'None' ? ` × ${rakeMod}× (${rakeType} rake)` : ''}`, 'info');
+    addLog(`   💥 Results: ${totalHits.toFixed(1)} hits → ${totalDamage} damage to ${actualAimType}`, 'success');
   };
 
   // === DAMAGE APPLICATION ===
@@ -1119,6 +1145,21 @@ export default function BTQCompanion() {
         
         allLogs.forEach(msg => addLog(`${s.name}: ${msg}`, 'error'));
         
+        // Log target status after damage
+        const hullPct = Math.round((result.ship.hullDamage / result.ship.hvn) * 100);
+        const crewRemaining = result.ship.crew - result.ship.crewLoss;
+        const crewPct = Math.round((crewRemaining / result.ship.crew) * 100);
+        
+        if (aimType === 'Hull') {
+          addLog(`   🎯 ${s.name} status: ${result.ship.hullDamage}/${result.ship.hvn} hull (${hullPct}%), SP ${result.ship.sp}, ${crewRemaining} crew (${crewPct}%)`, 'info');
+        } else if (aimType === 'Rigging') {
+          const sailsLost = result.ship.sailsLost?.length || 0;
+          const totalSails = result.ship.sailLayout?.length || 1;
+          addLog(`   🎯 ${s.name} status: ${sailsLost}/${totalSails} sails lost, SP ${result.ship.sp}, ${crewRemaining} crew (${crewPct}%)`, 'info');
+        } else if (aimType === 'Crew') {
+          addLog(`   🎯 ${s.name} status: ${crewRemaining}/${result.ship.crew} crew (${crewPct}%), SP ${result.ship.sp}`, 'info');
+        }
+        
         // Check for surrender (BTQ 6.94)
         if (result.ship.sp === 0 && s.sp > 0) {
           addLog(`⚑ ${s.name} STRIKES COLORS! (0 SP)`, 'error');
@@ -1175,12 +1216,14 @@ export default function BTQCompanion() {
       : 25; // Fallback only for undefined ages (10+)
     const roll = Math.random() * 100;
     
-    // Debug logging
-    console.log(`${ship.name} Magazine Check: Age ${fire.age}, Risk ${risk}%, Roll ${roll.toFixed(1)}`);
+    // Enhanced detailed logging
+    addLog(`   🎲 ${ship.name} Fire (Age ${fire.age}, ${getFireIntensity(fire.age)}): Magazine explosion roll ${roll.toFixed(1)}% ≤ ${risk}%?`, 'info');
     
     if (roll <= risk) {
       addLog(`💥 ${ship.name}: MAGAZINE EXPLOSION! Ship destroyed!`, 'error');
       return true;
+    } else {
+      addLog(`   ✅ Safe (rolled ${roll.toFixed(1)}% > ${risk}%)`, 'info');
     }
     return false;
   };
@@ -1617,15 +1660,26 @@ export default function BTQCompanion() {
         
         // Check for fire spreading (v8) - BTQ L.4.1.1: roll for each fire EVERY turn
         let newFire = { ...fire, age: newAge, intensity: newIntensity };
-        if (useEnhancedFire && shouldFireSpread(newFire, ship)) {
-          addLog(`🔥 Fire on ${ship.name} spreads! (creates new fire)`, 'error');
+        if (useEnhancedFire) {
+          const baseChance = FIRE_SPREAD_CHANCES[wind.strength] || 35;
+          let spreadChance = baseChance;
+          if (ship.organizedFireParty) spreadChance -= 10;
+          const roll = Math.random() * 100;
           
-          // Queue new fire to be added after map completes
-          newSpreadFires.push({ 
-            id: Date.now() + Math.random(),
-            age: 0, 
-            intensity: 'Minor'
-          });
+          addLog(`   🔥 ${ship.name} Fire (Age ${newAge}, ${newIntensity}): Spread roll ${roll.toFixed(1)}% ≤ ${spreadChance}%?`, 'info');
+          
+          if (roll <= spreadChance) {
+            addLog(`   ⚠️ SPREADS! Creates new fire (Age 0, Minor)`, 'error');
+            
+            // Queue new fire to be added after map completes
+            newSpreadFires.push({ 
+              id: Date.now() + Math.random(),
+              age: 0, 
+              intensity: 'Minor'
+            });
+          } else {
+            addLog(`   ✅ Contained (rolled ${roll.toFixed(1)}% > ${spreadChance}%)`, 'info');
+          }
         }
         
         // HOUSE RULE: Fire crew casualties based on intensity
@@ -1693,7 +1747,9 @@ export default function BTQCompanion() {
       });
       
       if (fireHullDamage > 0) {
-        addLog(`🔥 ${ship.name}: Fire burns ${fireHullDamage} hull!`, 'error');
+        const burningFires = allFires.filter(f => f.age >= 4);
+        const fireAges = burningFires.map(f => `Age ${f.age}`).join(', ');
+        addLog(`🔥 ${ship.name}: ${burningFires.length} fires burn hull for ${fireHullDamage} damage (${fireAges})`, 'error');
         
         // Apply fire damage to gdnCarry (same as hull damage)
         updatedShip.gdnCarry += fireHullDamage;
@@ -1705,7 +1761,7 @@ export default function BTQCompanion() {
         
         if (spLoss > 0) {
           updatedShip.sp = Math.max(0, updatedShip.sp - spLoss);
-          addLog(`📊 ${ship.name}: -${spLoss} SP from fire damage (${newHullPct}% hull)`, 'error');
+          addLog(`   📊 ${ship.name}: -${spLoss} SP from fire damage (${oldHullPct}% → ${newHullPct}% hull)`, 'error');
         }
       }
       
@@ -1766,6 +1822,29 @@ export default function BTQCompanion() {
       }
       // else 51-100: no change
     }
+    
+    // Turn Summary
+    addLog(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'info');
+    addLog(`📊 Turn ${turn} Summary:`, 'success');
+    updatedShips.forEach(ship => {
+      const hullPct = Math.round((ship.hullDamage / ship.hvn) * 100);
+      const crewRemaining = ship.crew - ship.crewLoss;
+      const crewPct = Math.round((crewRemaining / ship.crew) * 100);
+      const fireCount = ship.fires?.length || 0;
+      const fireAges = fireCount > 0 ? ` (ages: ${ship.fires.map(f => f.age).join(',')})` : '';
+      const sailsLost = ship.sailsLost?.length || 0;
+      const totalSails = ship.sailLayout?.length || 1;
+      
+      let statusEmoji = '⚓';
+      if (ship.status === 'Exploded') statusEmoji = '💥';
+      else if (ship.sp === 0) statusEmoji = '⚑';
+      else if (hullPct >= 75) statusEmoji = '🔥';
+      else if (hullPct >= 50) statusEmoji = '⚠️';
+      
+      addLog(`   ${statusEmoji} ${ship.name}: Hull ${ship.hullDamage}/${ship.hvn} (${hullPct}%), SP ${ship.sp}, Crew ${crewRemaining}/${ship.crew} (${crewPct}%), Sails ${sailsLost}/${totalSails}, Fires ${fireCount}${fireAges}`, 'info');
+    });
+    addLog(`   💨 Wind: ${wind.strength} from ${wind.direction}`, 'info');
+    addLog(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'info');
     
     addLog(`Turn ${turn + 1} begins`, 'info');
   };
