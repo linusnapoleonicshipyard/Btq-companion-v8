@@ -137,6 +137,7 @@ const RANGE_BANDS = {
   "36# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 41], Long: [41.1, 63], Extreme: [63.1, 150] },
   "32# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 43], Long: [43.1, 66], Extreme: [66.1, 158] },
   "30# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 43], Long: [43.1, 66], Extreme: [66.1, 158] },
+  "29# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 43], Long: [43.1, 66], Extreme: [66.1, 158] },
   "24# Long": { PB: [0, 2], Close: [2.1, 23], Medium: [23.1, 52], Long: [52.1, 79], Extreme: [79.1, 188] },
   "18# Long": { PB: [0, 2], Close: [2.1, 25], Medium: [25.1, 54], Long: [54.1, 82], Extreme: [82.1, 195] },
   "12# Long": { PB: [0, 2], Close: [2.1, 20], Medium: [20.1, 40], Long: [40.1, 60], Extreme: [60.1, 143] },
@@ -148,7 +149,11 @@ const RANGE_BANDS = {
   "1/2# Swivel": { PB: [0, 2], Close: [2.1, 8], Medium: [8.1, 15], Long: [15.1, 23], Extreme: [23.1, 54] },
   "68# Carronade": { PB: [0, 2], Close: [2.1, 14], Medium: [14.1, 23], Long: [23.1, 35], Extreme: [35.1, 94] },
   "42# Carronade": { PB: [0, 2], Close: [2.1, 14], Medium: [14.1, 21], Long: [21.1, 32], Extreme: [32.1, 86] },
-  "32# Carronade": { PB: [0, 2], Close: [2.1, 10], Medium: [10.1, 20], Long: [20.1, 30], Extreme: [30.1, 83] }
+  "36# Carronade": { PB: [0, 2], Close: [2.1, 12], Medium: [12.1, 20], Long: [20.1, 31], Extreme: [31.1, 84] },
+  "32# Carronade": { PB: [0, 2], Close: [2.1, 10], Medium: [10.1, 20], Long: [20.1, 30], Extreme: [30.1, 83] },
+  "24# Carronade": { PB: [0, 2], Close: [2.1, 9], Medium: [9.1, 18], Long: [18.1, 27], Extreme: [27.1, 75] },
+  "18# Carronade": { PB: [0, 2], Close: [2.1, 8], Medium: [8.1, 16], Long: [16.1, 24], Extreme: [24.1, 68] },
+  "12# Carronade": { PB: [0, 2], Close: [2.1, 7], Medium: [7.1, 14], Long: [14.1, 21], Extreme: [21.1, 60] }
 };
 
 const RANGE_MODIFIERS = { PB: 1.0, Close: 1.0, Medium: 0.54, Long: 0.40, Extreme: 0.07 };
@@ -781,7 +786,7 @@ export default function BTQCompanion() {
 
     // Check for hull shots at range that might hit sails instead (BTQ gunnery calculator)
     let actualAimType = aimType;
-    if (aimType === 'Hull') {
+    if (aimType === 'Hull' && availableGuns.length > 0) {
       const rangeBand = getRangeBand(availableGuns[0].type, distance);
       let sailHitChance = 0;
       
@@ -3545,7 +3550,7 @@ export default function BTQCompanion() {
         {/* Reset Game Confirmation Modal */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-[#4a3f2f] text-[#e8dfc8] rounded border-4 border-[#2a1f0f] shadow-2xl-lg p-2 sm:p-4 border-2 border-red-600 max-w-sm">
+            <div className="bg-[#4a3f2f] text-[#e8dfc8] rounded border-2 border-red-600 shadow-2xl p-2 sm:p-4 max-w-sm">
               <h3 className="text-lg font-bold text-red-400 mb-2">⚠️ Reset Game?</h3>
               <p className="text-[#e8dfc8] mb-2 sm:mb-4 text-xs sm:text-sm">All progress will be lost. Are you sure?</p>
               <div className="flex gap-2">
@@ -3570,7 +3575,7 @@ export default function BTQCompanion() {
         {/* Restart Turn Confirmation Modal */}
         {showRestartConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-[#4a3f2f] text-[#e8dfc8] rounded border-4 border-[#2a1f0f] shadow-2xl-lg p-2 sm:p-4 border-2 border-yellow-600 max-w-sm">
+            <div className="bg-[#4a3f2f] text-[#e8dfc8] rounded border-2 border-yellow-600 shadow-2xl p-2 sm:p-4 max-w-sm">
               <h3 className="text-lg font-bold text-yellow-400 mb-2">↩️ Restart Turn?</h3>
               <p className="text-[#e8dfc8] mb-2 sm:mb-4 text-xs sm:text-sm">Go back to the previous turn?</p>
               <div className="flex gap-2">
