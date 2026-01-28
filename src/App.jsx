@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Ship, Wind, Target, AlertCircle, Flame, Heart, Skull, Plus, Trash2, Navigation, Anchor, Swords, Users } from 'lucide-react';
+import { Ship, Wind, Target, AlertCircle, Flame, Heart, Skull, Plus, Trash2, Navigation, Anchor, Swords, Users, BookOpen } from 'lucide-react';
+import RangeComparisonChart from './components/RangeComparisonChart';
 
 // === MAST STRUCTURES ===
 
@@ -143,7 +144,7 @@ const RANGE_BANDS = {
   "12# Long": { PB: [0, 2], Close: [2.1, 20], Medium: [20.1, 40], Long: [40.1, 60], Extreme: [60.1, 143] },
   "9# Long": { PB: [0, 2], Close: [2.1, 19], Medium: [19.1, 37], Long: [37.1, 57], Extreme: [57.1, 135] },
   "8# Long": { PB: [0, 2], Close: [2.1, 18], Medium: [18.1, 36], Long: [36.1, 54], Extreme: [54.1, 128] },
-  "6# Long": { PB: [0, 2], Close: [2.1, 19], Medium: [19.1, 37], Long: [37.1, 57], Extreme: [57.1, 135] },
+  "6# Long": { PB: [0, 2], Close: [2.1, 17], Medium: [17.1, 34], Long: [34.1, 51], Extreme: [51.1, 120] },
   "4# Long": { PB: [0, 2], Close: [2.1, 16], Medium: [16.1, 32], Long: [32.1, 48], Extreme: [48.1, 115] },
   "3# Long": { PB: [0, 2], Close: [2.1, 15], Medium: [15.1, 30], Long: [30.1, 45], Extreme: [45.1, 107] },
   "1/2# Swivel": { PB: [0, 2], Close: [2.1, 8], Medium: [8.1, 15], Long: [15.1, 23], Extreme: [23.1, 54] },
@@ -2454,7 +2455,7 @@ export default function BTQCompanion() {
 
         <div className="parchment-texture rounded-lg p-3 sm:p-4">
           <div className="flex gap-1 mb-4 overflow-x-auto border-b-2 border-[#8b6f47] pb-2">
-            {['ships', 'movement', 'gunnery', 'boarding', 'damage', 'crew', 'log'].map(tab => (
+            {['ships', 'movement', 'gunnery', 'boarding', 'damage', 'crew', 'log', 'reference'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -3526,6 +3527,15 @@ export default function BTQCompanion() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'reference' && (
+          <div className="wood-border p-4 sm:p-6 rounded-lg">
+            <h2 className="text-lg font-bold mb-3 gold-accent heading-font flex items-center gap-2">
+              <BookOpen size={20} /> Reference Charts
+            </h2>
+            <RangeComparisonChart />
           </div>
         )}
 
