@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Ship, Wind, Target, AlertCircle, Flame, Heart, Skull, Plus, Trash2, Navigation, Anchor, Swords, Users, BookOpen } from 'lucide-react';
-import RangeComparisonChart from './components/RangeComparisonChart';
+import RangeComparisonChart from './components/RangeComparisonChart.jsx';
 
 // === MAST STRUCTURES ===
 
@@ -3609,4 +3609,3 @@ export default function BTQCompanion() {
     </div>
   );
 }
-
